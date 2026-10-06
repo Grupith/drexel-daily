@@ -128,3 +128,224 @@
     @apply font-sans;
   }
 }
+/* Drexel Daily landing page */
+.daily-page {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background: #f7faff;
+  color: #15365b;
+  font-family: var(--font-geist-sans), Arial, sans-serif;
+}
+
+.daily-header {
+  height: 72px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 40px;
+  border-bottom: 1px solid #e2eaf4;
+  background: #fff;
+}
+
+.daily-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  color: #001d87;
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.6px;
+}
+
+.daily-account {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #68788c;
+  font-size: 13px;
+}
+
+.daily-main {
+  flex: 1;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  padding: 64px 20px 40px;
+}
+
+.challenge-card {
+  width: 100%;
+  max-width: 560px;
+  min-height: 390px;
+  padding: 52px 40px;
+  text-align: center;
+  background: #fff;
+  border: 1px solid #dfe8f3;
+  border-radius: 20px;
+  box-shadow: 0 12px 40px #15365b08;
+}
+
+.challenge-card h1 {
+  font-size: clamp(32px, 5vw, 44px);
+  font-weight: 750;
+  line-height: 1.15;
+  letter-spacing: -1.6px;
+}
+
+.challenge-card p {
+  margin: 18px 0 32px;
+  color: #68788c;
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.play-button {
+  width: 180px;
+  max-width: 100%;
+  height: 50px;
+  border-radius: 999px;
+  background: #001d87;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.play-button:focus-visible { outline: 2px solid #2469bb; outline-offset: 3px; }
+.play-button:hover { background: #1755a0; }
+.daily-brand:focus-visible { outline: 2px solid #2469bb; outline-offset: 5px; }
+
+.challenge-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: calc(100% - 40px);
+  max-width: 400px;
+  padding: 24px;
+  border: 1px solid #dfe8f3;
+  border-radius: 16px;
+  background: white;
+  color: #15365b;
+  font-family: var(--font-geist-sans), Arial, sans-serif;
+}
+
+.challenge-dialog::backdrop { background: #15365b55; }
+.dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.dialog-heading h2 { font-size: 19px; font-weight: 600; letter-spacing: -0.5px; }
+.challenge-dialog p { margin-top: 16px; font-size: 13px; color: #68788c; }
+
+@media (max-width: 600px) {
+  .daily-header { height: 64px; padding: 0 20px; }
+  .daily-brand { font-size: 18px; }
+  .challenge-card { min-height: 360px; padding: 42px 24px; }
+}
+
+.daily-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.theme-toggle {
+  width: 40px;
+  height: 40px;
+  color: #68788c;
+}
+
+.theme-toggle:hover { background: #edf3fc; }
+.theme-toggle:focus-visible { outline: 2px solid #2469bb; outline-offset: 3px; }
+.theme-toggle .theme-sun { display: none; }
+.dark .theme-toggle .theme-moon { display: none; }
+.dark .theme-toggle .theme-sun { display: block; }
+
+.dark .daily-page { background: #0d1522; color: #e2ecfa; }
+.dark .daily-header { background: #111d2e; border-color: #26364c; }
+.dark .daily-brand { color: #7eb6fa; }
+.dark .daily-account,
+.dark .theme-toggle,
+.dark .challenge-card p,
+.dark .challenge-dialog p { color: #a3b3c9; }
+.dark .theme-toggle:hover { background: #21344d; }
+.dark .challenge-card,
+.dark .challenge-dialog {
+  background: #142135;
+  border-color: #2a3a51;
+  color: #e2ecfa;
+  box-shadow: 0 4px 24px #00000018;
+}
+.dark .play-button { background: #347bd1; }
+.dark .play-button:hover { background: #286abd; }
+.dark .challenge-dialog::backdrop { background: #03091499; }
+
+.daily-logo {
+  width: 114px;
+  height: auto;
+  flex-shrink: 0;
+}
+
+.daily-logo-white { display: none; }
+.dark .daily-logo-blue { display: none; }
+.dark .daily-logo-white { display: block; }
+
+@media (max-width: 600px) {
+  .daily-brand { gap: 12px; }
+  .daily-logo { width: 96px; }
+  .daily-nav-actions { gap: 8px; }
+}
+
+.daily-brand > span {
+  display: flex;
+  align-items: center;
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.8px;
+}
+
+@media (max-width: 600px) {
+  .daily-brand > span { font-size: 25px; }
+}
+
+.challenge-landing {
+  width: 100%;
+  max-width: 560px;
+  text-align: center;
+}
+
+.challenge-helper {
+  margin-bottom: 22px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #68788c;
+  letter-spacing: 0.2px;
+}
+
+.challenge-tiles {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  margin-bottom: 28px;
+}
+
+.challenge-tiles > span {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 5px;
+  background: #001d87;
+  color: white;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.challenge-tiles > span:nth-child(2) { background: #3a74c0; }
+.challenge-tiles > span:nth-child(3) { background: #e9f0fa; color: #001d87; }
+.dark .challenge-helper { color: #a3b3c9; }
+.dark .challenge-tiles > span:first-child { background: #347bd1; }
+.dark .challenge-tiles > span:nth-child(3) { background: #243957; color: #b9d6ff; }
+
+@media (max-width: 600px) {
+  .daily-main { padding-top: 36px; }
+}
