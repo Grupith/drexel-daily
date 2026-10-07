@@ -1,40 +1,10 @@
-import Link from "next/link";
-import Image from "next/image";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { UserRound } from "lucide-react";
+import { DailyHeader } from "@/components/daily-header";
 import { ChallengePreview } from "@/components/challenge-preview";
 
 export default function Home() {
   return (
     <div className="daily-page">
-      <header className="daily-header">
-        <Link href="/" className="daily-brand" aria-label="Drexel Daily home">
-          <Image
-            src="/drexel-logo-blue.svg"
-            alt="Drexel"
-            width={384}
-            height={127}
-            className="daily-logo daily-logo-blue"
-            priority
-          />
-          <Image
-            src="/drexel-logo-white.svg"
-            alt="Drexel"
-            width={384}
-            height={127}
-            className="daily-logo daily-logo-white"
-            priority
-          />
-          <span className="pt-2">Daily</span>
-        </Link>
-        <div className="daily-nav-actions">
-          <ThemeToggle />
-          <div className="daily-account cursor-pointer">
-            <UserRound size={16} aria-hidden="true" />
-            <span>Account</span>
-          </div>
-        </div>
-      </header>
+      <DailyHeader />
       <main className="daily-main">
         <div className="challenge-landing">
           <p className="challenge-helper">3 new questions, posted daily</p>

@@ -251,6 +251,7 @@
   width: 40px;
   height: 40px;
   color: #68788c;
+  cursor: pointer;
 }
 
 .theme-toggle:hover { background: #edf3fc; }
@@ -311,6 +312,55 @@
   width: 100%;
   max-width: 560px;
   text-align: center;
+}
+
+/* Daily challenge */
+.play-layout { width: 100%; max-width: 600px; }
+.play-home { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 24px; font-size: 14px; color: #68788c; }
+.play-home:hover { color: #001d87; }
+.play-card { padding: 36px; border: 1px solid #dfe8f3; border-radius: 20px; background: #fff; box-shadow: 0 12px 40px #15365b08; }
+.play-meta { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; font-weight: 600; color: #68788c; }
+.play-progress { display: flex; gap: 8px; margin: 16px 0 32px; }
+.play-progress span { flex: 1; height: 5px; border-radius: 999px; background: #e9f0fa; }
+.play-progress .is-active { background: #001d87; }
+.play-eyebrow { margin-bottom: 12px; color: #3a74c0; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+.play-card h1 { font-size: clamp(24px, 4vw, 30px); font-weight: 700; line-height: 1.3; letter-spacing: -0.7px; }
+.play-card h1:focus { outline: none; }
+.play-instruction { margin: 12px 0 24px; color: #68788c; font-size: 14px; }
+.play-options { display: grid; gap: 12px; min-width: 0; }
+.play-option { position: relative; display: flex; align-items: center; gap: 14px; min-height: 62px; padding: 14px 16px; border: 1px solid #dfe8f3; border-radius: 12px; cursor: pointer; font-size: 15px; }
+.play-option:hover { background: #f7faff; border-color: #8aaee0; }
+.play-option.is-selected { background: #edf3fc; border-color: #001d87; color: #001d87; }
+.play-option input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.play-option:has(input:focus-visible) { outline: 2px solid #2469bb; outline-offset: 3px; }
+.play-option-letter { display: grid; place-items: center; flex-shrink: 0; width: 30px; height: 30px; border-radius: 7px; background: #e9f0fa; color: #68788c; font-size: 13px; font-weight: 600; }
+.is-selected .play-option-letter { background: #001d87; color: white; }
+.play-option-text { flex: 1; }
+.play-estimate label { display: block; margin-bottom: 10px; font-size: 14px; font-weight: 600; }
+.play-estimate-input { display: flex; align-items: center; gap: 14px; }
+.play-estimate-input input { height: 56px; padding: 12px 16px; font-size: 18px; border-color: #dfe8f3; }
+.play-estimate-input span { color: #68788c; font-size: 14px; }
+.play-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 32px; padding-top: 24px; border-top: 1px solid #e2eaf4; }
+.play-back { height: 48px; cursor: pointer; color: inherit; }
+.play-next { width: auto; padding: 0 24px; gap: 10px; cursor: pointer; }
+.play-demo-note { margin-top: 20px; text-align: center; color: #68788c; font-size: 12px; line-height: 1.6; }
+.play-complete { text-align: center; padding: 16px 0; }
+.play-complete-icon { margin: 0 auto 24px; color: #3a74c0; }
+.play-complete > p:not(.play-eyebrow) { margin: 16px 0; color: #68788c; }
+.play-complete .play-button { margin-top: 12px; }
+.dark .play-card { background: #142135; border-color: #2a3a51; }
+.dark .play-meta, .dark .play-home, .dark .play-instruction, .dark .play-demo-note, .dark .play-estimate-input span, .dark .play-complete > p:not(.play-eyebrow) { color: #a3b3c9; }
+.dark .play-eyebrow, .dark .play-complete-icon { color: #7eb6fa; }
+.dark .play-progress span, .dark .play-option-letter { background: #243957; color: #a3b3c9; }
+.dark .play-progress .is-active, .dark .is-selected .play-option-letter { background: #347bd1; color: white; }
+.dark .play-option, .dark .play-estimate-input input, .dark .play-footer { border-color: #2a3a51; }
+.dark .play-option:hover { background: #1b2e48; border-color: #7eb6fa; }
+.dark .play-option.is-selected { background: #1b3556; border-color: #7eb6fa; color: #b9d6ff; }
+@media (max-width: 600px) {
+  .play-card { padding: 24px 20px; }
+  .play-option { padding: 12px; gap: 10px; }
+  .play-next { padding: 0 18px; font-size: 14px; }
+  .play-home { margin-bottom: 20px; }
 }
 
 .challenge-helper {
