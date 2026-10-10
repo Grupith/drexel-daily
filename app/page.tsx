@@ -1,27 +1,34 @@
-import { DailyHeader } from "@/components/daily-header";
 import { ChallengePreview } from "@/components/challenge-preview";
+import { LandingAccountStatus } from "@/components/landing-account-status";
 
 export default function Home() {
   return (
-    <div className="daily-page">
-      <DailyHeader />
-      <main className="daily-main">
-        <div className="challenge-landing">
-          <p className="challenge-helper">3 new questions, posted daily</p>
-          <section className="challenge-card" aria-labelledby="challenge-title">
-            <div className="challenge-tiles" aria-hidden="true">
-              <span>D</span>
-              <span>D</span>
-              <span>1</span>
-            </div>
-            <h1 id="challenge-title">Day 1 Challenge</h1>
-            <p>
-              A little Drexel know-how.
-              <br />A fresh challenge every day.
-            </p>
-            <ChallengePreview />
-          </section>
-        </div>
+    <div className="daily-page landing-page">
+      <main className="landing-main">
+        <section
+          className="challenge-landing"
+          aria-labelledby="challenge-title"
+        >
+          <div className="challenge-tiles" aria-hidden="true">
+            <span>D</span>
+            <span>B</span>
+            <span>S</span>
+          </div>
+          <h1 id="challenge-title">Drexel Daily</h1>
+          <p className="landing-description">
+            Three questions. A little Drexel know-how.
+            <br />A fresh challenge every weekday.
+          </p>
+          <ChallengePreview />
+          <p className="landing-meta">
+            {new Date().toLocaleDateString("en-US", {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+            })}
+          </p>
+          <LandingAccountStatus />
+        </section>
       </main>
     </div>
   );

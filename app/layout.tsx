@@ -1,3 +1,4 @@
+import { AuthProvider } from "@/auth/auth-context";
 import type { Metadata } from "next";
 import { ThemeProvider } from "next-themes";
 import { Geist, Geist_Mono } from "next/font/google";
@@ -28,7 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <TooltipProvider>{children}</TooltipProvider>
+          <AuthProvider><TooltipProvider>{children}</TooltipProvider></AuthProvider>
         </ThemeProvider>
       </body>
     </html>
