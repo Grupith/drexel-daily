@@ -7,8 +7,8 @@ export const metadata: Metadata = {
 
 export default function ProfilePage() {
   return (
-    <div className="daily-page landing-page profile-page">
-      <main className="profile-main">
+    <div className="min-h-svh flex flex-col text-drexel-ink font-drexel bg-drexel-canvas">
+      <main className="flex-1 grid justify-items-center pt-10 px-6 pb-14 [@media(max-width:600px)]:pt-6 [@media(max-width:600px)]:pb-10">
         <ProfileDetails />
       </main>
     </div>
