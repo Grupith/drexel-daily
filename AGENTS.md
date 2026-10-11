@@ -608,6 +608,10 @@ Use shadcn/ui components where appropriate.
 
 Maintain a consistent design system.
 
+Use Tailwind CSS utility classes directly in TSX components as the default styling approach. Do not create custom classes in `globals.css` for individual components. Reserve `globals.css` for Tailwind configuration/imports, global defaults, theme variables/design tokens, and necessary shared CSS such as keyframes or third-party overrides.
+
+Prefer existing Tailwind utilities and shadcn/ui design tokens, including theme-aware colors. Preserve Drexel branding and existing responsive behavior; use arbitrary values only when standard utilities cannot reproduce the design accurately. Use the existing `cn()` utility for conditional class names. Keep styling conventions consistent throughout the application and use reusable React components when appropriate instead of duplicating complex styling. Avoid abstractions that only shorten class strings.
+
 The UI should feel polished but simple.
 
 Prioritize:
