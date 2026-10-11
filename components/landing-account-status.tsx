@@ -10,30 +10,42 @@ export function LandingAccountStatus() {
   const { loading, user } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const showAccount = !loading && Boolean(user);
 
   return (
     <>
-    {!loading && user && <p className="landing-account-status" role="status">
+    <p
+      className={`landing-account-status${showAccount ? "" : " landing-account-hidden"}`}
+      role="status"
+      aria-hidden={!showAccount}
+    >
       <span className="landing-status-dot" aria-hidden="true" />
       <span>
         Logged in
-        {user.email ? (
+        {user?.email ? (
           <>
             {" "}
-            as <strong>{user.email}</strong>
+            as <strong title={user.email}>{user.email}</strong>
           </>
         ) : (
           ""
         )}
       </span>
-    </p>}
+    </p>
     <nav className="landing-links" aria-label="More about Drexel Daily and your account">
-      <Link href="/about">About</Link>
-      {!loading && user && <>
-        <Link href="/profile">Profile</Link>
+        <Link
+          href="/profile"
+          className={showAccount ? undefined : "landing-account-hidden"}
+          aria-hidden={!showAccount}
+          tabIndex={showAccount ? undefined : -1}
+        >Profile</Link>
+        <Link href="/about">About</Link>
         <button
           type="button"
-          disabled={signingOut}
+          className={showAccount ? undefined : "landing-account-hidden"}
+          aria-hidden={!showAccount}
+          tabIndex={showAccount ? undefined : -1}
+          disabled={!showAccount || signingOut}
           onClick={async () => {
             if (signingOut) return;
             setSigningOut(true);
@@ -50,7 +62,6 @@ export function LandingAccountStatus() {
         >
           {signingOut ? "Signing out…" : "Sign out"}
         </button>
-      </>}
     </nav>
     {error && <p className="landing-meta" role="alert">{error}</p>}
     </>

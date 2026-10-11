@@ -12,16 +12,16 @@ export function ChallengePreview() {
         type="button"
         className="play-button inline-flex items-center justify-center cursor-pointer"
         disabled={loading || signingIn}
+        aria-busy={loading || signingIn}
         onClick={() => void (needsRetry ? retryProfile() : startPlay())}
       >
-        {loading
-          ? "Loading…"
-          : signingIn
-            ? "Signing in…"
-            : needsRetry
-              ? "Try again"
-              : "Play"}
+        {signingIn ? "Signing in…" : needsRetry ? "Try again" : "Play"}
       </button>
+      {loading && (
+        <span role="status" className="sr-only">
+          Getting ready to play…
+        </span>
+      )}
       {error && (
         <p role="alert" className="mt-4 text-sm">
           {error}

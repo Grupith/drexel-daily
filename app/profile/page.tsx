@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { DailyHeader } from "@/components/daily-header";
 import { ProfileDetails } from "@/components/profile-details";
 
 export const metadata: Metadata = {
@@ -8,9 +7,8 @@ export const metadata: Metadata = {
 
 export default function ProfilePage() {
   return (
-    <div className="daily-page">
-      <DailyHeader />
-      <main className="daily-main">
+    <div className="daily-page landing-page profile-page">
+      <main className="profile-main">
         <ProfileDetails />
       </main>
     </div>

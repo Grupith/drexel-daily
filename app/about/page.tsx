@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Separator } from "@/components/ui/separator";
 
 export const metadata: Metadata = {
   title: "About | Drexel Daily",
@@ -10,23 +11,30 @@ export default function AboutPage() {
     <div className="daily-page landing-page">
       <main className="daily-main">
         <div className="play-layout">
-          <Link href="/" className="play-home">
-            Back to home
-          </Link>
-          <section className="play-card" aria-labelledby="about-title">
+          <section
+            className="play-card about-content"
+            aria-labelledby="about-title"
+          >
             <p className="play-eyebrow">A little sharper, every day</p>
             <h1 id="about-title">About Drexel Daily</h1>
+            <Separator className="about-divider" />
             <p className="play-instruction">
-              A quick daily challenge for the Drexel Building Supply team. Three
-              questions, a little Drexel know-how, and something new to learn.
+              Think you know Drexel? Put your knowledge to the test!
             </p>
+
             <p className="play-instruction">
-              Fresh challenges arrive every weekday, covering products, vendors,
-              company knowledge, safety, and more.
+              Drexel Daily was built for our team to have a little fun, learn
+              something new, and maybe even spark some friendly competition. It
+              focuses on one of our 11 core values:
+              <strong> Have fun.</strong>
             </p>
-            <Link href="/" className="play-home">
-              Click to play now!
-            </Link>
+
+            <p className="play-instruction">
+              Every weekday brings three new questions about our products,
+              vendors, safety, history, and everything that makes Drexel,
+              Drexel.
+            </p>
+            <Separator className="about-divider" />
             <footer className="about-credit">
               <span className="about-credit-avatar" aria-hidden="true">
                 DK
@@ -44,6 +52,16 @@ export default function AboutPage() {
               </div>
             </footer>
           </section>
+          <div className="about-actions">
+            <Link href="/" className="play-button about-play-button">
+              Click to play now!
+            </Link>
+          </div>
+          <div className="about-home">
+            <Link href="/" className="play-home">
+              Back to home
+            </Link>
+          </div>
         </div>
       </main>
     </div>

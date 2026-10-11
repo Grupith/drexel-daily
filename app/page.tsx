@@ -16,8 +16,11 @@ export default function Home() {
           </div>
           <h1 id="challenge-title">Drexel Daily</h1>
           <p className="landing-description">
-            Three questions. A little Drexel know-how.
-            <br />A fresh challenge every weekday.
+            Think you know Drexel?
+            <br />
+            Three new questions every weekday.
+            <br />
+            Let's find out.
           </p>
           <ChallengePreview />
           <p className="landing-meta">

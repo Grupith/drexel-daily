@@ -6,6 +6,7 @@ import { useState } from "react";
 import { ArrowLeft, UserRound } from "lucide-react";
 import { useAuth } from "@/auth/auth-context";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function ProfileDetails() {
   const { user, profile, loading, error, retryProfile } = useAuth();
@@ -13,13 +14,19 @@ export function ProfileDetails() {
   const [failedPhotoURL, setFailedPhotoURL] = useState<string | null>(null);
 
   return (
-    <div className="play-layout">
+    <div className="profile-layout">
       <Link href="/" className="play-home">
         <ArrowLeft size={16} aria-hidden="true" />
         Back to home
       </Link>
-      <section className="play-card" aria-labelledby="profile-title">
-        <h1 id="profile-title">Account</h1>
+      <section className="profile-content" aria-labelledby="profile-title">
+        <div className="challenge-tiles" aria-hidden="true">
+          <span>D</span>
+          <span>B</span>
+          <span>S</span>
+        </div>
+        <h1 id="profile-title">Your profile</h1>
+        <p className="profile-description">Your team. Your progress. Your daily routine.</p>
         {loading ? (
           <div role="status">
             <span className="sr-only">Loading your profile…</span>
@@ -71,7 +78,7 @@ export function ProfileDetails() {
           </>
         ) : (
           <>
-            <div className="mt-6 flex items-center gap-4">
+            <div className="profile-identity">
               <div
                 className="flex size-14 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
                 aria-hidden="true"
@@ -96,19 +103,19 @@ export function ProfileDetails() {
                     profile.displayName?.trim() ||
                     "Drexel team member"}
                 </p>
-                <p className="mt-1 wrap-break-word">
+                <p className="profile-email mt-1 wrap-break-word">
                   {user.email || profile.email || "No email available"}
                 </p>
               </div>
             </div>
-            <dl className="mt-6 border-t border-current/15 pt-5">
+            <dl className="profile-location">
               <dt className="text-sm opacity-75">Drexel location</dt>
               <dd className="mt-1 font-medium">
                 {profile.locationId || "Not selected yet"}
               </dd>
             </dl>
-            <h2 className="mt-8 text-lg font-semibold">Your progress</h2>
-            <dl className="mt-4 grid grid-cols-2 gap-3">
+            <h2 className="profile-section-title">Your progress</h2>
+            <dl className="profile-stats">
               {[
                 ["Current streak", profile.stats.currentStreak],
                 ["Longest streak", profile.stats.longestStreak],
@@ -117,10 +124,10 @@ export function ProfileDetails() {
               ].map(([label, value]) => (
                 <div
                   key={label}
-                  className="rounded-xl border border-current/15 p-4"
+                  className="profile-stat"
                 >
                   <dt className="text-sm opacity-75">{label}</dt>
-                  <dd className="mt-2 text-2xl font-semibold">{value}</dd>
+                  <dd className="profile-stat-value">{value}</dd>
                 </div>
               ))}
             </dl>
@@ -138,6 +145,13 @@ export function ProfileDetails() {
           </p>
         )}
       </section>
+      <div className="profile-appearance">
+        <div>
+          <h2>Appearance</h2>
+          <p>Switch between light and dark mode.</p>
+        </div>
+        <ThemeToggle />
+      </div>
     </div>
   );
 }
