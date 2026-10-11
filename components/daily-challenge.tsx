@@ -82,6 +82,15 @@ export function DailyChallenge() {
     };
   }, []);
   const heading = useRef<HTMLHeadingElement>(null);
+  const shouldFocusHeading = useRef(false);
+
+  useEffect(() => {
+    if (shouldFocusHeading.current) {
+      heading.current?.focus();
+      shouldFocusHeading.current = false;
+    }
+  }, [questionIndex, isSubmitted]);
+
   const question = questions[questionIndex];
   const answer = answers[question.id] ?? "";
   const hasAnswer =
@@ -94,8 +103,8 @@ export function DailyChallenge() {
   const isLastQuestion = questionIndex === questions.length - 1;
 
   function moveToQuestion(index: number) {
+    shouldFocusHeading.current = true;
     setQuestionIndex(index);
-    heading.current?.focus();
   }
 
   return (
@@ -120,6 +129,8 @@ export function DailyChallenge() {
             <h1
               className="text-[clamp(24px,4vw,30px)] font-bold leading-[1.3] tracking-[-0.7px] focus:outline-none"
               id="play-title"
+              ref={heading}
+              tabIndex={-1}
             >
               Answers submitted!
             </h1>
@@ -172,6 +183,7 @@ export function DailyChallenge() {
                 event.preventDefault();
                 if (!hasAnswer) return;
                 if (isLastQuestion) {
+                  shouldFocusHeading.current = true;
                   setIsSubmitted(true);
                 } else {
                   moveToQuestion(questionIndex + 1);
@@ -193,20 +205,36 @@ export function DailyChallenge() {
               <p className="mt-3 mb-6 text-drexel-subtle text-sm leading-normal">
                 {question.type === "estimate"
                   ? "Enter your best estimate."
-                  : "Select one answer."}
+                  : "Use Tab to move between answers and Space to select. Press Enter on your selected answer to continue."}
               </p>
               {question.type === "multiple-choice" ? (
                 <fieldset className="grid gap-3 min-w-0" key={question.id}>
                   <legend className="sr-only">Select one answer</legend>
                   {question.options.map((option, index) => (
-                    <label
+                    <button
                       key={option}
+                      type="button"
+                      aria-pressed={answer === option}
+                      onClick={() =>
+                        setAnswers({ ...answers, [question.id]: option })
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter") return;
+                        if (event.repeat) {
+                          event.preventDefault();
+                          return;
+                        }
+                        if (answer === option) {
+                          event.preventDefault();
+                          event.currentTarget.form?.requestSubmit();
+                        }
+                      }}
                       className={cn(
                         "relative flex items-center gap-3.5 min-h-15.5 py-3.5 px-4 border border-drexel-panel-border",
-                        "rounded-[12px] cursor-pointer text-[15px] leading-normal hover:bg-drexel-option-hover",
-                        "hover:border-drexel-option-hover-border has-focus-visible:outline-2",
-                        "has-focus-visible:outline-solid has-focus-visible:outline-drexel-focus",
-                        "has-focus-visible:outline-offset-3 [@media(max-width:600px)]:p-3",
+                        "rounded-[12px] cursor-pointer text-left text-[15px] leading-normal hover:bg-drexel-option-hover",
+                        "hover:border-drexel-option-hover-border focus-visible:outline-2",
+                        "focus-visible:outline-solid focus-visible:outline-drexel-focus",
+                        "focus-visible:outline-offset-3 [@media(max-width:600px)]:p-3",
                         "[@media(max-width:600px)]:gap-2.5",
                         answer === option && [
                           "bg-drexel-selected border-drexel-selected-border text-drexel-selected-ink hover:bg-drexel-selected",
@@ -214,17 +242,6 @@ export function DailyChallenge() {
                         ],
                       )}
                     >
-                      <input
-                        className="absolute size-px opacity-0"
-                        type="radio"
-                        name={question.id}
-                        value={option}
-                        checked={answer === option}
-                        onChange={() =>
-                          setAnswers({ ...answers, [question.id]: option })
-                        }
-                        required
-                      />
                       <span
                         className={cn(
                           "grid place-items-center shrink-0 size-7.5 rounded-[7px] bg-drexel-tile text-drexel-subtle",
@@ -239,7 +256,7 @@ export function DailyChallenge() {
                       {answer === option && (
                         <Check size={18} aria-hidden="true" />
                       )}
-                    </label>
+                    </button>
                   ))}
                 </fieldset>
               ) : (
@@ -319,7 +336,7 @@ export function DailyChallenge() {
         )}
       </section>
       {!isSubmitted && (
-        <div className="flex items-center justify-around flex-wrap gap-y-4 gap-x-6 pt-5 px-1 text-drexel-subtle">
+        <div className="flex items-center justify-around flex-wrap gap-y-4 gap-x-6 pt-8 px-1 text-drexel-subtle">
           <div>
             <p className="flex items-center gap-1.75 text-[13px] font-semibold leading-normal">
               <CalendarDays size={14} aria-hidden="true" />

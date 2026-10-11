@@ -6,6 +6,7 @@ import { signOut } from "firebase/auth";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function LandingAccountStatus() {
   const { loading, user } = useAuth();
@@ -43,10 +44,12 @@ export function LandingAccountStatus() {
         </span>
       </p>
       <nav
-        className="
-      grid grid-cols-[repeat(3,minmax(0,90px))] justify-center items-center gap-2.5 mt-5.5
-      text-drexel-subtle text-[13px] leading-normal
-    "
+        className={cn(
+          "grid justify-center items-center gap-2.5 mt-5.5 text-drexel-subtle text-[13px] leading-normal",
+          showAccount
+            ? "grid-cols-[repeat(3,minmax(0,90px))_40px]"
+            : "grid-cols-[auto_40px]",
+        )}
         aria-label="More about Drexel Daily and your account"
       >
         <Link
@@ -55,7 +58,7 @@ export function LandingAccountStatus() {
             "py-2 cursor-pointer hover:underline underline-offset-4 focus-visible:outline-2",
             "focus-visible:outline-solid focus-visible:outline-drexel-focus focus-visible:outline-offset-4",
             "focus-visible:rounded-xs",
-            !showAccount && "invisible",
+            !showAccount && "hidden",
           )}
           aria-hidden={!showAccount}
           tabIndex={showAccount ? undefined : -1}
@@ -78,7 +81,7 @@ export function LandingAccountStatus() {
             "py-2 cursor-pointer hover:underline underline-offset-4 focus-visible:outline-2",
             "focus-visible:outline-solid focus-visible:outline-drexel-focus focus-visible:outline-offset-4",
             "focus-visible:rounded-xs disabled:cursor-wait disabled:opacity-60",
-            !showAccount && "invisible",
+            !showAccount && "hidden",
           )}
           aria-hidden={!showAccount}
           tabIndex={showAccount ? undefined : -1}
@@ -99,6 +102,7 @@ export function LandingAccountStatus() {
         >
           {signingOut ? "Signing out…" : "Sign out"}
         </button>
+        <ThemeToggle />
       </nav>
       {error && (
         <p

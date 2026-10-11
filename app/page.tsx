@@ -9,13 +9,8 @@ export default function Home() {
         <section
           className="
             w-full max-w-160 text-center
-            motion-safe:*:animate-landing-fade-in
-            motion-safe:[&>:nth-child(2)]:[animation-delay:100ms]
-            motion-safe:[&>:nth-child(3)]:[animation-delay:200ms]
-            motion-safe:[&>:nth-child(4)]:[animation-delay:300ms]
-            motion-safe:[&>:nth-child(n+5)]:[animation-delay:500ms]
-            motion-safe:[&>:nth-child(n+5)]:animation-duration-[1100ms]
-            motion-safe:focus-within:*:animate-none!
+            motion-safe:animate-in motion-safe:fade-in-0
+            motion-safe:animation-duration-[250ms] motion-safe:ease-out
           "
           aria-labelledby="challenge-title"
         >

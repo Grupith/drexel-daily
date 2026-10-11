@@ -34,43 +34,38 @@ export function ProfileDetails() {
         aria-labelledby="profile-title"
       >
         <BrandTiles />
-        <h1
-          id="profile-title"
-          className="text-[clamp(36px,7vw,48px)] font-[750] leading-[1.1] tracking-[-1.5px]"
-        >
-          Your profile
-        </h1>
-        <p className="mt-4 mb-8 text-drexel-description text-base leading-[1.6] text-balance">
-          Your team. Your progress. Your daily routine.
-        </p>
+
         {loading ? (
           <div role="status">
             <span className="sr-only">Loading your profile…</span>
-            <div aria-hidden="true">
-              <div className="mt-6 flex items-center gap-4">
+            <div
+              aria-hidden="true"
+              className="**:data-[slot=skeleton]:motion-reduce:animate-none"
+            >
+              <div className="flex flex-col items-center gap-3.5">
                 <Skeleton className="size-14 shrink-0 rounded-full" />
-                <div className="min-w-0 flex-1">
-                  <Skeleton className="h-7 w-44 max-w-full" />
-                  <Skeleton className="mt-1 h-6 w-60 max-w-full" />
+                <div className="min-w-0 max-w-full">
+                  <Skeleton className="mx-auto h-7 w-44 max-w-full" />
+                  <Skeleton className="mx-auto mt-1 h-5.25 w-60 max-w-full" />
                 </div>
               </div>
-              <div className="mt-6 border-t border-current/15 pt-5">
-                <Skeleton className="h-5 w-28" />
-                <Skeleton className="mt-1 h-6 w-36" />
+              <div className="mt-6">
+                <Skeleton className="mx-auto h-5.25 w-28 max-w-full" />
+                <Skeleton className="mx-auto mt-1 h-6 w-36 max-w-full" />
               </div>
-              <Skeleton className="mt-8 h-7 w-32" />
+              <Skeleton className="mx-auto mt-8 h-6.75 w-32 max-w-full" />
               <div className="mt-4 grid grid-cols-2 gap-3">
                 {[0, 1, 2, 3].map((index) => (
                   <div
                     key={index}
-                    className="rounded-xl border border-current/15 p-4"
+                    className="rounded-md border border-drexel-divider px-3 py-5"
                   >
-                    <Skeleton className="h-5 w-28 max-w-full" />
-                    <Skeleton className="mt-2 h-8 w-12" />
+                    <Skeleton className="mx-auto h-5.25 w-28 max-w-full" />
+                    <Skeleton className="mx-auto mt-2 h-[38.4px] w-12 max-w-full" />
                   </div>
                 ))}
               </div>
-              <Skeleton className="mt-8 h-12.5 w-45 max-w-full rounded-full" />
+              <Skeleton className="mx-auto mt-8 h-12.5 w-45 max-w-full rounded-full" />
             </div>
           </div>
         ) : !user ? (

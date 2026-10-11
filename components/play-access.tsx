@@ -6,6 +6,7 @@ import { useAuth } from "@/auth/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DREXEL_LOCATIONS } from "@/lib/locations";
+import { PlaySkeleton } from "@/components/play-skeleton";
 
 export function PlayAccess({ children }: { children: ReactNode }) {
   const {
@@ -22,7 +23,9 @@ export function PlayAccess({ children }: { children: ReactNode }) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  if (!loading && user && profile?.locationId) return children;
+  if (loading) return <PlaySkeleton />;
+
+  if (user && profile?.locationId) return children;
 
   if (!loading && user && profile) {
     return (
@@ -112,9 +115,7 @@ export function PlayAccess({ children }: { children: ReactNode }) {
       "
         aria-labelledby="access-title"
       >
-        {loading ? (
-          <p role="status">Loading your profile…</p>
-        ) : !user ? (
+        {!user ? (
           <>
             <h1
               id="access-title"
