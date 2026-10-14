@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function loadProfile(currentUser: User, version: number) {
     const ref = doc(db, "users", currentUser.uid);
-    await runTransaction(db, async (transaction) => {
+    const existingProfile = await runTransaction(db, async (transaction) => {
       const snapshot = await transaction.get(ref);
       const data = snapshot.data() ?? {};
       const defaults = {
@@ -82,11 +82,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         Object.entries(defaults).filter(([key]) => !(key in data)),
       );
       if ("location" in data) missing.location = deleteField();
-      if (Object.keys(missing).length)
+      if (Object.keys(missing).length) {
         transaction.set(ref, missing, { merge: true });
+        return null;
+      }
+      return snapshot;
     });
-    // Read again to obtain the committed server timestamp.
-    const snapshot = await getDoc(ref);
+    if (
+      version !== generation.current ||
+      auth.currentUser?.uid !== currentUser.uid
+    )
+      return;
+    // Only new/migrated profiles need a read for committed defaults/timestamps.
+    const snapshot = existingProfile ?? (await getDoc(ref));
     if (
       version !== generation.current ||
       auth.currentUser?.uid !== currentUser.uid

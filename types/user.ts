@@ -8,6 +8,10 @@ export interface UserStats {
 }
 
 export interface UserProfile {
+  totalPoints?: number;
+  gamesPlayed?: number;
+  totalCorrect?: number;
+  lastPlayedDate?: string;
   displayName: string | null;
   email: string | null;
   photoURL: string | null;

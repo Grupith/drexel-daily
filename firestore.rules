@@ -32,6 +32,8 @@ service cloud.firestore {
         && request.resource.data.role == 'employee'
         && request.resource.data.createdAt == request.time
         && initialStats();
+      // The update allowlist excludes root totalPoints, gamesPlayed, totalCorrect
+      // and lastPlayedDate. The stats map below is also immutable to clients.
       // Legacy documents may initialize missing fields, but existing protected
       // values cannot be changed. Admin promotions and stats require trusted code.
       allow update: if ownsProfile(uid) && validProfile()
@@ -44,6 +46,18 @@ service cloud.firestore {
           || (!('createdAt' in resource.data) && request.resource.data.createdAt == request.time))
         && (('stats' in resource.data && request.resource.data.stats == resource.data.stats)
           || (!('stats' in resource.data) && initialStats()));
+    }
+    match /users/{uid}/attempts/{date} {
+      allow read: if ownsProfile(uid);
+      allow create, update, delete: if false;
+    }
+    // Answer keys are only readable through the trusted Admin SDK.
+    // Console / IAM administrators bypass these rules; published content is immutable by policy.
+    match /questions/{questionId} {
+      allow read, write: if false;
+    }
+    match /challenges/{date} {
+      allow read, write: if false;
     }
     // All other client access is denied until explicitly authorized.
   }
