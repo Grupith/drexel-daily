@@ -311,3 +311,35 @@ weekday/holiday policy; do not infer streaks from elapsed hours. Future leaderbo
 reads should use trusted aggregates with deliberate visibility rules. Keep root
 statistics canonical and preserve the transactional single-attempt invariant.
 Employee authorization remains the existing Firebase authentication policy.
+
+## Yard leaderboard
+
+The landing page shows the top three yards; `/leaderboard` shows all ten and
+marks the signed-in employee's `locationId`. Both require authentication to read
+rankings. Names and tie order come from `lib/locations.ts`. Missing documents
+appear with zero points, so no Firebase Console initialization or indexes are
+required. Existing submissions are not migrated.
+
+New accepted daily submissions atomically increment
+`locations/{locationId}.totalPoints` with the existing server-calculated points,
+in the same transaction as the attempt and user counters. The document is
+created on first submission (including a zero-point submission), with only
+`totalPoints`. This adds one write and no reads per accepted submission; duplicate
+submissions do not increment anything. Invalid/missing profile locations reject
+submission without writes. Admin test challenges do not award yard points.
+
+Leaderboard views share a five-minute, per-user in-memory request cache. Totals
+may be up to five minutes old; navigation after expiration refreshes them.
+There are no listeners or polling. Reads fetch only the locations collection.
+
+Deploy the updated `firestore.rules` before releasing the UI:
+`firebase deploy --only firestore:rules` (select the intended Firebase project).
+Authenticated clients can read locations, but all client creates, updates, and
+deletes are denied. Trusted Admin SDK code performs the increment. Deploy the
+application changes as well; no manual Console data changes are needed.
+
+`npm test` covers ranking, zero defaults, exact location IDs, submission points,
+duplicate suppression, unchanged user counters, shared reads, and both display
+variants. Rule assertions inspect the rule source; transaction tests use a mock.
+Before production release, verify permissions and concurrent commits against a
+Firebase emulator or staging project and check layout on mobile and desktop.

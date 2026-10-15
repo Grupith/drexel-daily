@@ -1,4 +1,5 @@
-import { Timestamp } from "firebase-admin/firestore";
+import { DREXEL_LOCATIONS } from "@/lib/locations";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getAdminServices } from "@/firebase/admin";
 import { getChallengeDay } from "@/lib/challenges/date";
 import {
@@ -161,6 +162,9 @@ export async function POST(request: Request) {
         submittedAt: Timestamp;
       };
       const profile = user.data()!;
+      const locationId: unknown = profile.locationId;
+      if (typeof locationId !== "string" || !DREXEL_LOCATIONS.includes(locationId))
+        throw new SubmissionError(409, "Please select a valid location in your profile before submitting.");
       const count = (value: unknown) =>
         typeof value === "number" && Number.isFinite(value) && value >= 0
           ? value
@@ -170,6 +174,9 @@ export async function POST(request: Request) {
         score.pointsEarned;
       const gamesPlayed =
         count(profile.gamesPlayed ?? profile.stats?.challengesPlayed) + 1;
+      transaction.set(db.collection("locations").doc(locationId), {
+        totalPoints: FieldValue.increment(score.pointsEarned),
+      }, { merge: true });
       transaction.create(attemptRef, attempt);
       transaction.update(userRef, {
         totalPoints,

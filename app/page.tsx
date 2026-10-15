@@ -1,3 +1,4 @@
+import { YardLeaderboard } from "@/components/yard-leaderboard";
 import { BrandTiles } from "@/components/brand-tiles";
 import { ChallengePreview } from "@/components/challenge-preview";
 import { LandingAccountStatus } from "@/components/landing-account-status";
@@ -37,6 +38,7 @@ export default function Home() {
             })}
           </p>
           <LandingAccountStatus />
+          <YardLeaderboard preview />
         </section>
       </main>
     </div>

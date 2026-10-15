@@ -31,6 +31,7 @@ function load(path, imports = {}) {
   });
   return loadedModule.exports;
 }
+const locations = load("lib/locations.ts");
 const dates = load("lib/challenges/date.ts");
 const attempts = load("lib/challenges/attempt.ts");
 const scoring = load("lib/challenges/scoring.ts");
@@ -369,10 +370,12 @@ function submissionRoute({
   authError = null,
   profile = {
     displayName: "Employee",
+    locationId: "Campbellsport",
     stats: { totalPoints: 100, challengesPlayed: 4, currentStreak: 2 },
   },
 } = {}) {
   let attempt;
+  const yardTotals = new Map();
   let writes = 0;
   let queue = Promise.resolve();
   const ref = (path) => ({
@@ -401,6 +404,15 @@ function submissionRoute({
               id: reference.path.split("/").at(-1),
               data: () => (invalidQuestion ? undefined : questionDocs[reference.path.split("/").at(-1)] ?? question),
             })),
+          set: (reference, data, options) => {
+            assert.equal(reference.path, `locations/${profile.locationId}`);
+            assert.equal(options.merge, true);
+            assert.deepEqual(Object.keys(data), ["totalPoints"]);
+            pending.push(() => {
+              yardTotals.set(profile.locationId, (yardTotals.get(profile.locationId) ?? 0) + data.totalPoints.increment);
+              writes++;
+            });
+          },
           create: (reference, data) => {
             assert.equal(reference.path, "users/employee/attempts/2026-10-14");
             pending.push(() => {
@@ -428,7 +440,9 @@ function submissionRoute({
     },
   };
   const { POST } = load("app/api/challenge/submit/route.ts", {
+    "@/lib/locations": locations,
     "firebase-admin/firestore": {
+      FieldValue: { increment: value => ({ increment: value }) },
       Timestamp: { now: () => savedAttempt.submittedAt },
     },
     "@/firebase/admin": {
@@ -451,7 +465,7 @@ function submissionRoute({
     "@/lib/challenges/scoring": scoring,
     "@/lib/challenges/attempt": attempts,
   });
-  return { POST, profile, attempt: () => attempt, writes: () => writes };
+  return { POST, profile, yardTotals, attempt: () => attempt, writes: () => writes };
 }
 const submissionRequest = (
   body = {
@@ -485,6 +499,7 @@ test("server scores all totals and atomically preserves profile fields and exist
     assert.equal(data.results.pointsEarned, count * 10);
     assert.deepEqual(fixture.attempt().answers, answers);
     assert.equal(fixture.profile.totalPoints, 100 + count * 10);
+    assert.equal(fixture.yardTotals.get("Campbellsport"), count * 10);
     assert.equal(fixture.profile.gamesPlayed, 5);
     assert.equal(fixture.profile.totalCorrect, count);
     assert.equal(fixture.profile.lastPlayedDate, "2026-10-14");
@@ -495,7 +510,7 @@ test("server scores all totals and atomically preserves profile fields and exist
     assert.equal(fixture.profile.stats.challengesPlayed, 5);
     assert.equal(fixture.profile.stats.currentStreak, 2);
     assert.equal(fixture.profile.displayName, "Employee");
-    assert.equal(fixture.writes(), 2);
+    assert.equal(fixture.writes(), 3);
   }
 });
 test("simultaneous and repeated submissions return the saved attempt and award points once", async () => {
@@ -509,10 +524,11 @@ test("simultaneous and repeated submissions return the saved attempt and award p
     [201, 409],
   );
   assert.deepEqual(await responses[0].json(), await responses[1].json());
-  assert.equal(fixture.writes(), 2);
+  assert.equal(fixture.writes(), 3);
   assert.equal(fixture.profile.totalPoints, 120);
+  assert.equal(fixture.yardTotals.get("Campbellsport"), 20);
   assert.equal((await fixture.POST(submissionRequest())).status, 409);
-  assert.equal(fixture.writes(), 2);
+  assert.equal(fixture.writes(), 3);
 });
 test("submission rejects invalid data, spoofed identities, unavailable content, weekends and failures without writes or keys", async () => {
   const valid = {
@@ -690,7 +706,7 @@ test('mixed submissions score estimates on the server and snapshot exact answers
     assert.equal(response.status,201);
     const {results}=await response.json(); assert.equal(results.correctCount,2); assert.equal(results.pointsEarned,20);
     assert.equal(results.questions[1].correctAnswer,value); assert.equal(results.answers[1],value);
-    assert.equal((await server.POST(submissionRequest())).status,409); assert.equal(server.writes(),2);
+    assert.equal((await server.POST(submissionRequest())).status,409); assert.equal(server.writes(),3);
   }
   for (const value of [799,801,800.5]) {
     const server=submissionRoute({questionDocs:{q1:estimateQuestion}});
@@ -736,4 +752,93 @@ test('estimate results show submitted and correct numeric values with units',asy
     const review=text(ChallengeResultsView({results:{...savedAttempt,answers:[answer],questions:[{...content.toPublicQuestion('a',estimateQuestion),correctAnswer:800}]},headingRef:{current:null}}));
     assert.match(review,new RegExp(`Your Estimate ${answer}\\s+employees`));assert.match(review,/Correct Answer 800\s+employees/);assert.match(review,answer===800?/·\s+Correct/:/·\s+Incorrect/);
   }
+});
+
+
+test("yard rankings include all locations, zero defaults, and allowlist tie order", () => {
+  const { rankYards } = load("lib/yard-leaderboard.ts", { "@/lib/locations": locations });
+  const yards = rankYards(new Map([["Downtown", 20], ["Kiel", 20], ["Berlin", 10], ["Unknown", 999], ["Amherst", -1]]));
+  assert.equal(yards.length, 10);
+  assert.deepEqual(Array.from(yards.slice(0, 3), yard => yard.locationId), ["Downtown", "Kiel", "Berlin"]);
+  assert.equal(yards[3].locationId, "Campbellsport");
+  assert.equal(yards[9].totalPoints, 0);
+  assert.deepEqual(Array.from(rankYards(new Map()), yard => yard.locationId), Array.from(locations.DREXEL_LOCATIONS));
+});
+
+test("each exact location ID receives points; invalid locations reject the entire submission", async () => {
+  for (const locationId of [...locations.DREXEL_LOCATIONS, null, "campbellsport", "Unknown", "Downtown "]) {
+    const fixture = submissionRoute({ profile: { locationId, stats: {} } });
+    const response = await fixture.POST(submissionRequest());
+    const valid = locations.DREXEL_LOCATIONS.includes(locationId);
+    assert.equal(response.status, valid ? 201 : 409);
+    assert.equal(fixture.writes(), valid ? 3 : 0);
+    assert.equal(fixture.yardTotals.get(locationId), valid ? 20 : undefined);
+  }
+});
+
+test("leaderboard security denies client writes and profile allowlist matches the source", () => {
+  const rules = fs.readFileSync("firestore.rules", "utf8");
+  assert.match(rules, /match \/locations\/\{locationId\}\s*\{\s*allow read: if request.auth != null;\s*allow create, update, delete: if false;/);
+  const allowlist = rules.match(/data.locationId in \[([\s\S]*?)\]/)[1];
+  assert.deepEqual(Array.from(allowlist.matchAll(/'([^']+)'/g), match => match[1]), Array.from(locations.DREXEL_LOCATIONS));
+});
+
+test("leaderboard views share a cached collection request and failed requests can retry", async () => {
+  let reads = 0;
+  let fail = false;
+  const { getYardLeaderboard } = load("lib/yard-leaderboard-client.ts", {
+    "firebase/firestore": {
+      collection: (_, name) => { assert.equal(name, "locations"); return name; },
+      getDocs: async () => {
+        reads++;
+        if (fail) throw new Error("Unavailable");
+        return { docs: [{ id: "Kiel", data: () => ({ totalPoints: 30 }) }] };
+      },
+    },
+    "@/firebase/config": { db: {} },
+    "@/lib/yard-leaderboard": load("lib/yard-leaderboard.ts", { "@/lib/locations": locations }),
+  });
+  const first = getYardLeaderboard("employee");
+  assert.equal(first, getYardLeaderboard("employee"));
+  assert.equal((await first)[0].locationId, "Kiel");
+  await getYardLeaderboard("employee");
+  assert.equal(reads, 1);
+  fail = true;
+  await assert.rejects(getYardLeaderboard("another-employee"));
+  fail = false;
+  await getYardLeaderboard("another-employee");
+  assert.equal(reads, 3);
+});
+
+test("preview renders three yards and full view renders ten with current yard highlighted", async () => {
+  const { rankYards } = load("lib/yard-leaderboard.ts", { "@/lib/locations": locations });
+  const yards = rankYards(new Map());
+  let state = { uid: "employee", yards };
+  let signedIn = true;
+  const { YardLeaderboard } = load("components/yard-leaderboard.tsx", {
+    react: { ...React, useState: () => [state, () => {}], useEffect() {} },
+    "react/jsx-runtime": await import("react/jsx-runtime"),
+    "next/link": { default: "a" },
+    "@/auth/auth-context": { useAuth: () => ({ user: signedIn ? { uid: "employee" } : null, profile: { locationId: "Downtown" }, loading: false }) },
+    "@/components/ui/card": { Card: "card", CardHeader: "header", CardContent: "content" },
+    "@/components/ui/button": { Button: "button" },
+    "@/lib/yard-leaderboard-client": {},
+    "@/lib/utils": { cn: (...values) => values.filter(Boolean).join(" ") },
+  });
+  function nodes(tree) { return React.isValidElement(tree) ? [tree, ...React.Children.toArray(tree.props.children).flatMap(nodes)] : []; }
+  function text(tree) { return typeof tree === "string" || typeof tree === "number" ? String(tree) : React.isValidElement(tree) ? React.Children.toArray(tree.props.children).map(text).join(" ") : ""; }
+  const preview = YardLeaderboard({ preview: true });
+  assert.equal(nodes(preview).filter(node => node.type === "li").length, 3);
+  assert.equal(nodes(preview).find(node => node.props.href)?.props.href, "/leaderboard");
+  const full = YardLeaderboard({});
+  assert.equal(nodes(full).filter(node => node.type === "li").length, 10);
+  const current = nodes(full).filter(node => node.type === "li").find(node => text(node).includes("Your yard"));
+  assert.match(text(current), /Downtown/);
+  assert.match(current.props.className, /border-drexel-action/);
+  state = null;
+  assert.match(text(YardLeaderboard({})), /Loading yard rankings/);
+  state = { uid: "employee", error: "Could not load" };
+  assert.ok(nodes(YardLeaderboard({})).some(node => node.props.role === "alert"));
+  signedIn = false;
+  assert.match(text(YardLeaderboard({})), /Sign in through Play/);
 });
