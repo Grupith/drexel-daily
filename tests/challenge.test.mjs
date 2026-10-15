@@ -228,6 +228,8 @@ test("component loads API questions, preserves backward navigation and changed a
     ),
     "@/lib/utils": { cn: () => "" },
     "@/components/ui/button": { Button: "button" },
+    "@/components/ui/input": { Input: "input" },
+    "@/lib/challenges/content": content,
     "@/components/challenge-results": { ChallengeResultsView: "results" },
     "@/auth/auth-context": { useAuth: () => ({ user }) },
     "@/components/play-skeleton": { PlaySkeleton: "skeleton" },
@@ -362,6 +364,7 @@ function submissionRoute({
     questionIds: ["q3", "q1", "q2"],
   },
   invalidQuestion = false,
+  questionDocs = {},
   fail = false,
   authError = null,
   profile = {
@@ -396,7 +399,7 @@ function submissionRoute({
           getAll: async (...references) =>
             references.map((reference) => ({
               id: reference.path.split("/").at(-1),
-              data: () => (invalidQuestion ? undefined : question),
+              data: () => (invalidQuestion ? undefined : questionDocs[reference.path.split("/").at(-1)] ?? question),
             })),
           create: (reference, data) => {
             assert.equal(reference.path, "users/employee/attempts/2026-10-14");
@@ -560,6 +563,7 @@ test("submission rejects invalid data, spoofed identities, unavailable content, 
 
 test("review shows original options, selected answers, correct and incorrect labels and Friday wording", async () => {
   const { ChallengeResultsView } = load("components/challenge-results.tsx", {
+    "@/components/ui/button": { Button: "button" },
     "react/jsx-runtime": await import("react/jsx-runtime"),
     "next/link": { default: "a" },
     "lucide-react": { CheckCircle2: "check", XCircle: "cross" },
@@ -648,7 +652,7 @@ test('cancelled challenge load does not issue a request after token retrieval', 
   const { DailyChallenge } = load('components/daily-challenge.tsx', {
     react: { ...React, useState: initial => [initial, () => {}], useRef: initial => ({ current: initial }), useEffect: effect => effects.push(effect) },
     'react/jsx-runtime': await import('react/jsx-runtime'), 'next/link': { default: 'a' },
-    'lucide-react': {}, '@/lib/utils': { cn: () => '' }, '@/components/ui/button': { Button: 'button' },
+    'lucide-react': {}, '@/lib/utils': { cn: () => '' }, '@/components/ui/button': { Button: 'button' }, '@/components/ui/input': { Input: 'input' }, '@/lib/challenges/content': content,
     '@/components/challenge-results': { ChallengeResultsView: 'results' },
     '@/auth/auth-context': { useAuth: () => ({ user: { getIdToken: () => new Promise(resolve => { resolveToken = resolve; }) } }) },
     '@/components/play-skeleton': { PlaySkeleton: 'skeleton' },
@@ -659,4 +663,77 @@ test('cancelled challenge load does not issue a request after token retrieval', 
   cleanup(); resolveToken('valid');
   await new Promise(resolve => setTimeout(resolve, 20));
   assert.equal(calls, 0);
+});
+
+const estimateQuestion = {text:'How many?',category:'Company',type:'estimate',correctAnswer:800,unit:'employees',minGuess:-1000,maxGuess:5000,isActive:true,imageUrl:null};
+test('exact numeric scoring preserves zero, decimals, negatives, and the existing scale',()=>{
+  for (const value of [0,-12,0.25,800,800.0]) {
+    assert.equal(scoring.scoreAnswers([value],[value]).pointsEarned,10);
+    assert.equal(scoring.scoreAnswers([value+0.5],[value]).pointsEarned,0);
+  }
+  assert.equal(scoring.scoreAnswers([0.1+0.2],[0.3]).pointsEarned,0);
+});
+test('estimate public responses omit answer keys and validate finite ranged answers', async()=>{
+  const publicQuestion=content.toPublicQuestion('q1',estimateQuestion);
+  assert.equal('correctAnswer' in publicQuestion,false);
+  assert.equal('correctAnswerIndex' in publicQuestion,false);
+  for (const answer of [0,-1,800.5]) assert.equal(content.isValidAnswer(publicQuestion,answer),true);
+  for (const answer of [undefined,null,'800',NaN,Infinity,-Infinity,-1001,5001]) assert.equal(content.isValidAnswer(publicQuestion,answer),false);
+  const result=await route({docs:['q1','q2','q3'].map(id=>({id,data:()=>estimateQuestion}))}).GET(request());
+  const body=await result.json(); assert.equal(body.status,'available');
+  assert.equal(JSON.stringify(body).includes('correctAnswer'),false);
+});
+test('mixed submissions score estimates on the server and snapshot exact answers',async()=>{
+  for (const value of [0,-12,0.25,800]) {
+    const server=submissionRoute({questionDocs:{q1:{...estimateQuestion,correctAnswer:value}}});
+    const response=await server.POST(submissionRequest({challengeDate:'2026-10-14',questionIds:['q3','q1','q2'],answers:[0,value,1]}));
+    assert.equal(response.status,201);
+    const {results}=await response.json(); assert.equal(results.correctCount,2); assert.equal(results.pointsEarned,20);
+    assert.equal(results.questions[1].correctAnswer,value); assert.equal(results.answers[1],value);
+    assert.equal((await server.POST(submissionRequest())).status,409); assert.equal(server.writes(),2);
+  }
+  for (const value of [799,801,800.5]) {
+    const server=submissionRoute({questionDocs:{q1:estimateQuestion}});
+    const response=await server.POST(submissionRequest({challengeDate:'2026-10-14',questionIds:['q3','q1','q2'],answers:[0,value,0]}));
+    assert.equal((await response.json()).results.pointsEarned,20);
+  }
+  for (const answers of [[0,null,0],[0,'800',0],[0,5001,0],[0,-1001,0],[0.5,800,0]]) {
+    const server=submissionRoute({questionDocs:{q1:estimateQuestion}});
+    assert.equal((await server.POST(submissionRequest({challengeDate:'2026-10-14',questionIds:['q3','q1','q2'],answers}))).status,400);
+    assert.equal(server.writes(),0);
+  }
+});
+
+test('estimate input preserves zero and decimals across navigation without extra requests', async()=>{
+  const states=[],refs=[],effects=[]; let cursor=0,calls=0;
+  const hooks={...React,useState(initial){const i=cursor++;if(!(i in states))states[i]=initial;return [states[i],v=>{states[i]=typeof v==='function'?v(states[i]):v;}];},useRef(initial){const i=cursor++;return refs[i]??={current:initial};},useEffect(fn){effects.push(fn);}};
+  const {DailyChallenge}=load('components/daily-challenge.tsx',{
+    react:hooks,'react/jsx-runtime':await import('react/jsx-runtime'),'next/link':{default:'a'},'lucide-react':{},'@/lib/utils':{cn:()=>''},
+    '@/components/ui/button':{Button:'button'},'@/components/ui/input':{Input:'input'},'@/lib/challenges/content':content,
+    '@/components/challenge-results':{ChallengeResultsView:'results'},'@/auth/auth-context':{useAuth:()=>({user:{getIdToken:async()=> 'valid'}})},'@/components/play-skeleton':{PlaySkeleton:'skeleton'},
+    fetch:async()=>{calls++;return Response.json({status:'available',date:'2026-10-14',questions:['a','b','c'].map(id=>content.toPublicQuestion(id,estimateQuestion))});}
+  });
+  function nodes(tree){return React.isValidElement(tree)?[tree,...React.Children.toArray(tree.props.children).flatMap(nodes)]:[];}
+  const render=()=>{cursor=0;return nodes(DailyChallenge());};
+  render();effects[0]();await new Promise(resolve=>setTimeout(resolve,10));
+  let tree=render();
+  const input=()=>tree.find(n=>n.props.id==='estimate-answer');
+  const next=()=>tree.find(n=>n.type==='form').props.onSubmit({preventDefault(){}});
+  const back=()=>tree.find(n=>n.props.variant==='ghost').props.onClick();
+  const enter=value=>{input().props.onChange({target:{value:String(value),valueAsNumber:Number(value)}});tree=render();};
+  assert.equal(input().props.min,-1000);assert.equal(input().props.max,5000);assert.equal(input().props.step,'any');
+  enter(0);assert.equal(tree.find(n=>n.props.type==='submit').props.disabled,false);next();tree=render();
+  enter(-12.25);back();tree=render();assert.equal(input().props.value,'0');
+  next();tree=render();assert.equal(input().props.value,'-12.25');
+  enter(5001);assert.equal(tree.find(n=>n.props.type==='submit').props.disabled,true);
+  enter('');assert.equal(tree.find(n=>n.props.type==='submit').props.disabled,true);
+  assert.equal(calls,1);
+});
+test('estimate results show submitted and correct numeric values with units',async()=>{
+  const {ChallengeResultsView}=load('components/challenge-results.tsx',{'@/components/ui/button':{Button:'button'},'react/jsx-runtime':await import('react/jsx-runtime'),'next/link':{default:'a'},'lucide-react':{CheckCircle2:'check',XCircle:'cross'},'@/lib/utils':{cn:()=>''}});
+  function text(tree){if(typeof tree==='string'||typeof tree==='number')return String(tree);return React.isValidElement(tree)?React.Children.toArray(tree.props.children).map(text).join(' '):'';}
+  for(const answer of [750,800]){
+    const review=text(ChallengeResultsView({results:{...savedAttempt,answers:[answer],questions:[{...content.toPublicQuestion('a',estimateQuestion),correctAnswer:800}]},headingRef:{current:null}}));
+    assert.match(review,new RegExp(`Your Estimate ${answer}\\s+employees`));assert.match(review,/Correct Answer 800\s+employees/);assert.match(review,answer===800?/·\s+Correct/:/·\s+Incorrect/);
+  }
 });

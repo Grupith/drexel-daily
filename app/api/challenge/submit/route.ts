@@ -4,6 +4,7 @@ import { getChallengeDay } from "@/lib/challenges/date";
 import {
   getPublishedQuestionIds,
   toPublicQuestion,
+  isValidAnswer,
 } from "@/lib/challenges/content";
 import { scoreAnswers } from "@/lib/challenges/scoring";
 import { toChallengeResults } from "@/lib/challenges/attempt";
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
       !Array.isArray(input.answers) ||
       input.answers.length !== 3 ||
       !input.answers.every(
-        (answer) => Number.isInteger(answer) && answer >= 0 && answer < 4,
+        (answer) => typeof answer === "number" && Number.isFinite(answer),
       )
     )
       throw new SubmissionError(
@@ -127,11 +128,12 @@ export async function POST(request: Request) {
             503,
             "Today's challenge is temporarily unavailable. Please try again later.",
           );
-        return {
-          ...question,
-          correctAnswerIndex: data!.correctAnswerIndex as number,
-        };
+        return question.type === "estimate"
+          ? { ...question, correctAnswer: data!.correctAnswer as number }
+          : { ...question, correctAnswerIndex: data!.correctAnswerIndex as number };
       });
+      if (questions.some((question, index) => !isValidAnswer(question, answers[index])))
+        throw new SubmissionError(400, "Provide a valid answer within the allowed range for every question.");
       const user = await transaction.get(userRef);
       if (!user.exists)
         throw new SubmissionError(
@@ -146,7 +148,7 @@ export async function POST(request: Request) {
         );
       const score = scoreAnswers(
         answers,
-        questions.map((question) => question.correctAnswerIndex),
+        questions.map((question) => question.type === "estimate" ? question.correctAnswer : question.correctAnswerIndex),
       );
       const attempt = {
         challengeDate: date,

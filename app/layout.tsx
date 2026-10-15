@@ -1,3 +1,4 @@
+import { AdminSessionSync } from "@/components/admin/session-sync";
 import { AuthProvider } from "@/auth/auth-context";
 import type { Metadata } from "next";
 import { ThemeProvider } from "next-themes";
@@ -29,7 +30,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <AuthProvider><TooltipProvider>{children}</TooltipProvider></AuthProvider>
+          <AuthProvider><AdminSessionSync /><TooltipProvider>{children}</TooltipProvider></AuthProvider>
         </ThemeProvider>
       </body>
     </html>

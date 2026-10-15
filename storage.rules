@@ -1,0 +1,8 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Uploads are validated by the authenticated admin API. Image download URLs
+    // use Storage download tokens; clients cannot list or write bucket objects.
+    match /{path=**} { allow read, write: if false; }
+  }
+}

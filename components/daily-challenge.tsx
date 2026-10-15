@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, CalendarDays, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isValidAnswer } from "@/lib/challenges/content";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/auth/auth-context";
 import { PlaySkeleton } from "@/components/play-skeleton";
@@ -14,14 +16,19 @@ import type {
   SubmissionResponse,
 } from "@/types/challenge";
 
-export function DailyChallenge() {
+function numericalAnswer(value: number | string | undefined): number {
+  return typeof value === "string" ? (value.trim() === "" ? NaN : Number(value)) : value ?? NaN;
+}
+
+export function DailyChallenge({ testChallenge }: { testChallenge?: Extract<DailyChallengeResponse, { status: "available" }> } = {}) {
+  const testMode = !!testChallenge;
   const [questionIndex, setQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [answers, setAnswers] = useState<Record<string, number | string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitting = useRef(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const { user } = useAuth();
-  const [response, setResponse] = useState<DailyChallengeResponse | null>(null);
+  const [response, setResponse] = useState<DailyChallengeResponse | null>(testChallenge ?? null);
   const isSubmitted = response?.status === "completed";
   const [retry, setRetry] = useState(0);
   const [imageError, setImageError] = useState<string | null>(null);
@@ -35,6 +42,7 @@ export function DailyChallenge() {
     : "";
 
   useEffect(() => {
+    if (testChallenge) return;
     const controller = new AbortController();
     async function loadChallenge() {
       try {
@@ -61,7 +69,7 @@ export function DailyChallenge() {
     }
     void loadChallenge();
     return () => controller.abort();
-  }, [user, retry]);
+  }, [user, retry, testChallenge]);
   const heading = useRef<HTMLHeadingElement>(null);
   const shouldFocusHeading = useRef(false);
 
@@ -75,11 +83,7 @@ export function DailyChallenge() {
   const questions = response?.status === "available" ? response.questions : [];
   const question = questions[questionIndex];
   const answer = question ? answers[question.id] : undefined;
-  const hasAnswer =
-    answer !== undefined &&
-    Number.isInteger(answer) &&
-    answer >= 0 &&
-    answer < 4;
+  const hasAnswer = !!question && isValidAnswer(question, numericalAnswer(answer));
   const isLastQuestion = questionIndex === questions.length - 1;
 
   function moveToQuestion(index: number) {
@@ -89,7 +93,7 @@ export function DailyChallenge() {
 
   async function submitAnswers() {
     if (submitting.current || !user || response?.status !== "available") return;
-    if (questions.some((item) => answers[item.id] === undefined)) {
+    if (questions.some((item) => !isValidAnswer(item, numericalAnswer(answers[item.id])))) {
       setSubmissionError(
         "Please answer all three questions before submitting.",
       );
@@ -103,9 +107,9 @@ export function DailyChallenge() {
       const submission: ChallengeSubmission = {
         challengeDate: response.date,
         questionIds: questions.map((item) => item.id),
-        answers: questions.map((item) => answers[item.id]),
+        answers: questions.map((item) => numericalAnswer(answers[item.id])),
       };
-      const result = await fetch("/api/challenge/submit", {
+      const result = await fetch(testMode ? `/api/admin/challenges/${response.date}/test` : "/api/challenge/submit", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -130,7 +134,7 @@ export function DailyChallenge() {
       }
     } catch {
       setSubmissionError(
-        "We couldn’t confirm your submission. Please try again, or refresh to check whether your answers were saved.",
+        testMode ? "Test scoring failed. Please try again." : "We couldn’t confirm your submission. Please try again, or refresh to check whether your answers were saved.",
       );
     } finally {
       submitting.current = false;
@@ -166,7 +170,7 @@ export function DailyChallenge() {
             </Button>
           )}
           <Link href="/" className="block mt-6 text-sm text-drexel-subtle">
-            Back to home
+            {testMode ? "Back to Challenges" : "Back to home"}
           </Link>
         </section>
       </div>
@@ -176,7 +180,7 @@ export function DailyChallenge() {
   return (
     <div className="w-full max-w-150">
       <h2 className="mb-6 text-center text-2xl font-bold leading-normal">
-        Today’s challenge
+        {testMode ? "Test challenge" : "Today’s challenge"}
       </h2>
       <section
         className="
@@ -188,6 +192,12 @@ export function DailyChallenge() {
         {isSubmitted ? (
           <ChallengeResultsView
             results={response.status === "completed" ? response.results : null}
+            testMode={testMode}
+            onTestAgain={() => {
+              setAnswers({}); setQuestionIndex(0); setSubmissionError(null);
+              setImageError(null); setIsSubmitting(false); submitting.current = false;
+              shouldFocusHeading.current = true; setResponse(testChallenge!);
+            }}
             headingRef={heading}
           />
         ) : (
@@ -240,8 +250,7 @@ export function DailyChallenge() {
                 {question.text}
               </h1>
               <p className="mt-3 mb-6 text-drexel-subtle text-sm leading-normal">
-                Use Tab to move between answers and Space to select. Press Enter
-                on your selected answer to continue.
+                {question.type === "estimate" ? "Enter your estimate. Only an exact numerical answer earns credit." : "Use Tab to move between answers and Space to select. Press Enter on your selected answer to continue."}
               </p>
               {question.imageUrl &&
                 (imageError === question.id ? (
@@ -259,7 +268,7 @@ export function DailyChallenge() {
                     className="mb-6 max-h-80 w-full rounded-xl object-contain"
                   />
                 ))}
-              <fieldset className="grid gap-3 min-w-0" key={question.id}>
+              {question.type === "estimate" ? <div className="space-y-2" key={question.id}><label htmlFor="estimate-answer" className="text-sm font-semibold">Your estimate</label><div className="flex items-center gap-3"><Input id="estimate-answer" type="number" step="any" required min={question.minGuess} max={question.maxGuess} disabled={isSubmitting} value={answer ?? ""} placeholder="Enter your estimate…" className="h-14 text-base" onChange={event => { const value = event.target.value; setAnswers(current => ({ ...current, [question.id]: value })); }}/>{question.unit && <span className="text-sm text-drexel-subtle">{question.unit}</span>}</div>{(question.minGuess !== undefined || question.maxGuess !== undefined) && <p className="text-xs text-drexel-subtle">{question.minGuess !== undefined && `Minimum: ${question.minGuess}`}{question.minGuess !== undefined && question.maxGuess !== undefined && " · "}{question.maxGuess !== undefined && `Maximum: ${question.maxGuess}`}</p>}</div> : <fieldset className="grid gap-3 min-w-0" key={question.id}>
                 <legend className="sr-only">Select one answer</legend>
                 {question.options.map((option, index) => (
                   <button
@@ -311,7 +320,7 @@ export function DailyChallenge() {
                     {answer === index && <Check size={18} aria-hidden="true" />}
                   </button>
                 ))}
-              </fieldset>
+              </fieldset>}
               {submissionError && (
                 <p
                   role="alert"
@@ -374,14 +383,14 @@ export function DailyChallenge() {
             </p>
           </div>
           <Link
-            href="/"
+            href={testMode ? "/admin/challenges" : "/"}
             className="
             inline-flex items-center gap-2 text-sm text-drexel-subtle whitespace-nowrap hover:text-drexel-brand
             dark:hover:text-drexel-subtle leading-normal
           "
           >
             <ArrowLeft size={14} aria-hidden="true" />
-            Back to home
+            {testMode ? "Back to Challenges" : "Back to home"}
           </Link>
         </div>
       )}

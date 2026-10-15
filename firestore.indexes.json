@@ -1,0 +1,4 @@
+{
+  "indexes": [{ "collectionGroup": "challenges", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "questionIds", "arrayConfig": "CONTAINS" }, { "fieldPath": "status", "order": "ASCENDING" }] }],
+  "fieldOverrides": [{ "collectionGroup": "attempts", "fieldPath": "challengeDate", "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION" }, { "order": "DESCENDING", "queryScope": "COLLECTION" }, { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }] }]
+}

@@ -1,21 +1,29 @@
 import type { Timestamp } from "firebase/firestore";
 
-export interface Question {
+interface QuestionFields {
   text: string;
   category: string;
-  type: "multiple_choice";
-  options: string[];
-  correctAnswerIndex: number;
   imageUrl?: string | null;
+  difficulty?: "Easy" | "Medium" | "Hard";
+  explanation?: string;
   isActive: boolean;
   createdAt: Timestamp;
 }
-
-// Only explicitly approved presentation fields cross the API boundary.
-export type PublicQuestion = Pick<Question, "text" | "category" | "type" | "options"> & {
+export type Question = QuestionFields & (
+  | { type: "multiple_choice"; options: string[]; correctAnswerIndex: number }
+  | { type: "estimate"; correctAnswer: number; unit?: string; minGuess?: number; maxGuess?: number }
+);
+interface PublicQuestionFields {
   id: string;
+  text: string;
+  category: string;
   imageUrl: string | null;
-};
+}
+// Answer keys never cross this boundary before submission.
+export type PublicQuestion = PublicQuestionFields & (
+  | { type: "multiple_choice"; options: string[] }
+  | { type: "estimate"; unit?: string; minGuess?: number; maxGuess?: number }
+);
 
 export interface DailyChallenge {
   date: string;
@@ -34,7 +42,9 @@ export interface ChallengeSubmission {
   questionIds: string[];
   answers: number[];
 }
-export type ResultQuestion = PublicQuestion & { correctAnswerIndex: number };
+export type ResultQuestion =
+  | (Extract<PublicQuestion, { type: "multiple_choice" }> & { correctAnswerIndex: number })
+  | (Extract<PublicQuestion, { type: "estimate" }> & { correctAnswer: number });
 export interface ChallengeAttempt {
   challengeDate: string;
   questionIds: string[];

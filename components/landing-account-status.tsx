@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminEntry } from "@/components/admin/entry";
 import { useAuth } from "@/auth/auth-context";
 import { auth } from "@/firebase/config";
 import { signOut } from "firebase/auth";
@@ -104,6 +105,7 @@ export function LandingAccountStatus() {
         </button>
         <ThemeToggle />
       </nav>
+      <AdminEntry />
       {error && (
         <p
           className="mt-7.5 text-drexel-subtle text-sm font-medium leading-normal"

@@ -3,14 +3,19 @@
 import type { RefObject } from "react";
 import Link from "next/link";
 import { CheckCircle2, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ChallengeResults } from "@/types/challenge";
 
 export function ChallengeResultsView({
   results,
   headingRef,
+  testMode = false,
+  onTestAgain,
 }: {
   results: ChallengeResults | null;
+  testMode?: boolean;
+  onTestAgain?: () => void;
   headingRef: RefObject<HTMLHeadingElement | null>;
 }) {
   if (!results) return null;
@@ -30,7 +35,7 @@ export function ChallengeResultsView({
           tabIndex={-1}
           className="text-[clamp(24px,4vw,30px)] font-bold leading-[1.3] tracking-[-0.7px] focus:outline-none"
         >
-          Today’s challenge complete!
+          {testMode ? "Test challenge complete!" : "Today’s challenge complete!"}
         </h1>
         <p className="mt-5 text-3xl font-bold">
           {results.correctCount}/3 correct
@@ -39,7 +44,7 @@ export function ChallengeResultsView({
           +{results.pointsEarned} Points
         </p>
         <p className="my-4 text-drexel-subtle">
-          {isFriday
+          {testMode ? "Test complete. No results were recorded." : isFriday
             ? "Enjoy your weekend! Come back Monday for three new questions."
             : "Thanks for playing! Come back tomorrow for three new questions."}
         </p>
@@ -47,7 +52,7 @@ export function ChallengeResultsView({
       <div className="mt-8 grid gap-6">
         {results.questions.map((question, questionIndex) => {
           const selected = results.answers[questionIndex];
-          const correct = selected === question.correctAnswerIndex;
+          const correct = selected === (question.type === "estimate" ? question.correctAnswer : question.correctAnswerIndex);
           return (
             <section
               key={question.id}
@@ -87,7 +92,7 @@ export function ChallengeResultsView({
                   }}
                 />
               )}
-              <ul className="mt-4 grid gap-3">
+              {question.type === "estimate" ? <div className="mt-4 grid gap-3"><p className={cn("rounded-xl border p-4 text-sm", correct ? "border-green-600 bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-200" : "border-red-600 bg-red-50 text-red-900 dark:bg-red-950 dark:text-red-200")}><span className="block font-semibold">Your Estimate</span>{selected} {question.unit}</p><p className="rounded-xl border border-green-600 bg-green-50 p-4 text-sm text-green-900 dark:bg-green-950 dark:text-green-200"><span className="block font-semibold">Correct Answer</span>{question.correctAnswer} {question.unit}</p></div> : <ul className="mt-4 grid gap-3">
                 {question.options.map((option, index) => (
                   <li
                     key={index}
@@ -117,16 +122,17 @@ export function ChallengeResultsView({
                       )}
                   </li>
                 ))}
-              </ul>
+              </ul>}
             </section>
           );
         })}
       </div>
+      {testMode && <Button className="mx-auto mt-8 flex" onClick={onTestAgain}>Test Again</Button>}
       <Link
-        href="/"
+        href={testMode ? "/admin/challenges" : "/"}
         className="mx-auto mt-8 flex h-12.5 w-45 max-w-full items-center justify-center rounded-full bg-drexel-action text-base font-semibold text-white hover:bg-drexel-action-hover focus-visible:outline-2 focus-visible:outline-drexel-focus focus-visible:outline-offset-3"
       >
-        Back to home
+        {testMode ? "Back to Challenges" : "Back to home"}
       </Link>
     </div>
   );
