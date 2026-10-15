@@ -82,6 +82,15 @@ on refresh. No answers, attempts, scores, or stats are written.
 
 #### Server configuration
 
+The admin session endpoint (`POST` and `DELETE /api/admin/session`) accepts the
+exact browser origin `https://drexeldaily.com`. Outside production it also accepts
+`http://localhost:3000`. Missing or other origins receive 403. This explicit
+allowlist does not depend on App Hosting's internal request URL, `Host`, or
+forwarded headers. No `ALLOWED_ORIGINS` variable is required. Redeploy Firebase
+App Hosting after changing this route. Session creation still requires a verified
+Firebase token and a `users/{uid}` role of `admin`; production cookies retain
+`Secure`, `HttpOnly`, and `SameSite=Strict`.
+
 The existing `firebase/config.ts` and public Firebase variables remain intact.
 `firebase/admin.ts` uses Application Default Credentials (ADC), guarded by
 `server-only`, and initializes lazily. Set `FIREBASE_PROJECT_ID` to the same
