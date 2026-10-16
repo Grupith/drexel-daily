@@ -402,14 +402,22 @@ function submissionRoute({
           getAll: async (...references) =>
             references.map((reference) => ({
               id: reference.path.split("/").at(-1),
-              data: () => (invalidQuestion ? undefined : questionDocs[reference.path.split("/").at(-1)] ?? question),
+              data: () =>
+                invalidQuestion
+                  ? undefined
+                  : (questionDocs[reference.path.split("/").at(-1)] ??
+                    question),
             })),
           set: (reference, data, options) => {
             assert.equal(reference.path, `locations/${profile.locationId}`);
             assert.equal(options.merge, true);
             assert.deepEqual(Object.keys(data), ["totalPoints"]);
             pending.push(() => {
-              yardTotals.set(profile.locationId, (yardTotals.get(profile.locationId) ?? 0) + data.totalPoints.increment);
+              yardTotals.set(
+                profile.locationId,
+                (yardTotals.get(profile.locationId) ?? 0) +
+                  data.totalPoints.increment,
+              );
               writes++;
             });
           },
@@ -442,7 +450,7 @@ function submissionRoute({
   const { POST } = load("app/api/challenge/submit/route.ts", {
     "@/lib/locations": locations,
     "firebase-admin/firestore": {
-      FieldValue: { increment: value => ({ increment: value }) },
+      FieldValue: { increment: (value) => ({ increment: value }) },
       Timestamp: { now: () => savedAttempt.submittedAt },
     },
     "@/firebase/admin": {
@@ -465,7 +473,13 @@ function submissionRoute({
     "@/lib/challenges/scoring": scoring,
     "@/lib/challenges/attempt": attempts,
   });
-  return { POST, profile, yardTotals, attempt: () => attempt, writes: () => writes };
+  return {
+    POST,
+    profile,
+    yardTotals,
+    attempt: () => attempt,
+    writes: () => writes,
+  };
 }
 const submissionRequest = (
   body = {
@@ -599,6 +613,34 @@ test("review shows original options, selected answers, correct and incorrect lab
   );
   assert.match(review, /2 \/3 correct/);
   assert.match(review, /20\s+Points/);
+  assert.match(review, /View Leaderboard/);
+  assert.match(review, /Back to Home/);
+  function links(tree) {
+    if (!React.isValidElement(tree)) return [];
+    return [
+      ...(tree.type === "a" ? [tree.props.href] : []),
+      ...React.Children.toArray(tree.props.children).flatMap(links),
+    ];
+  }
+  assert.deepEqual(
+    links(
+      ChallengeResultsView({
+        results: { ...savedAttempt, submittedAt: "" },
+        headingRef: { current: null },
+      }),
+    ),
+    ["/leaderboard", "/"],
+  );
+  assert.deepEqual(
+    links(
+      ChallengeResultsView({
+        results: { ...savedAttempt, submittedAt: "" },
+        headingRef: { current: null },
+        testMode: true,
+      }),
+    ),
+    ["/admin/challenges"],
+  );
   assert.equal((review.match(/Your answer/g) ?? []).length, 3);
   assert.match(review, /Incorrect/);
   assert.match(review, /Correct answer/);
@@ -614,39 +656,90 @@ test("review shows original options, selected answers, correct and incorrect lab
   );
 });
 
-test('authentication reads an existing profile once, rereads only after initialization, and cleans up its listener', async () => {
+test("authentication reads an existing profile once, rereads only after initialization, and cleans up its listener", async () => {
   for (const initialize of [false, true]) {
-    const states = []; const effects = [];
-    let reads = 0; let writes = 0; let subscriptions = 0; let cleanups = 0; let listener;
-    const currentUser = { uid: 'employee', displayName: 'Employee', email: 'employee@example.com', photoURL: null };
-    let stored = initialize ? {} : {
-      displayName: 'Employee', email: 'employee@example.com', photoURL: null,
-      locationId: 'Campbellsport', role: 'employee', createdAt: {},
-      stats: { totalPoints: 20, challengesPlayed: 1, currentStreak: 0, longestStreak: 0 },
+    const states = [];
+    const effects = [];
+    let reads = 0;
+    let writes = 0;
+    let subscriptions = 0;
+    let cleanups = 0;
+    let listener;
+    const currentUser = {
+      uid: "employee",
+      displayName: "Employee",
+      email: "employee@example.com",
+      photoURL: null,
     };
+    let stored = initialize
+      ? {}
+      : {
+          displayName: "Employee",
+          email: "employee@example.com",
+          photoURL: null,
+          locationId: "Campbellsport",
+          role: "employee",
+          createdAt: {},
+          stats: {
+            totalPoints: 20,
+            challengesPlayed: 1,
+            currentStreak: 0,
+            longestStreak: 0,
+          },
+        };
     const snapshot = () => ({ data: () => stored });
     const router = { replace() {} };
-    const { AuthProvider } = load('auth/auth-context.tsx', {
-      react: { ...React, useState: initial => {
-        const index = states.length; states.push(initial);
-        return [initial, value => { states[index] = typeof value === 'function' ? value(states[index]) : value; }];
-      }, useRef: initial => ({ current: initial }), useEffect: effect => effects.push(effect) },
-      'react/jsx-runtime': await import('react/jsx-runtime'),
-      'next/navigation': { useRouter: () => router },
-      'firebase/auth': {
+    const { AuthProvider } = load("auth/auth-context.tsx", {
+      react: {
+        ...React,
+        useState: (initial) => {
+          const index = states.length;
+          states.push(initial);
+          return [
+            initial,
+            (value) => {
+              states[index] =
+                typeof value === "function" ? value(states[index]) : value;
+            },
+          ];
+        },
+        useRef: (initial) => ({ current: initial }),
+        useEffect: (effect) => effects.push(effect),
+      },
+      "react/jsx-runtime": await import("react/jsx-runtime"),
+      "next/navigation": { useRouter: () => router },
+      "firebase/auth": {
         getRedirectResult: async () => null,
-        onAuthStateChanged: (_, callback) => { subscriptions++; listener = callback; return () => { cleanups++; }; },
+        onAuthStateChanged: (_, callback) => {
+          subscriptions++;
+          listener = callback;
+          return () => {
+            cleanups++;
+          };
+        },
       },
-      'firebase/firestore': {
-        doc: () => ({}), serverTimestamp: () => ({ committed: true }),
-        runTransaction: async (_, callback) => callback({
-          get: async () => { reads++; return snapshot(); },
-          set: (_, missing, options) => { assert.equal(options.merge, true); writes++; stored = { ...stored, ...missing }; },
-        }),
-        getDoc: async () => { reads++; return snapshot(); },
+      "firebase/firestore": {
+        doc: () => ({}),
+        serverTimestamp: () => ({ committed: true }),
+        runTransaction: async (_, callback) =>
+          callback({
+            get: async () => {
+              reads++;
+              return snapshot();
+            },
+            set: (_, missing, options) => {
+              assert.equal(options.merge, true);
+              writes++;
+              stored = { ...stored, ...missing };
+            },
+          }),
+        getDoc: async () => {
+          reads++;
+          return snapshot();
+        },
       },
-      '@/firebase/config': { auth: { currentUser }, db: {} },
-      '@/lib/locations': { DREXEL_LOCATIONS: ['Campbellsport'] },
+      "@/firebase/config": { auth: { currentUser }, db: {} },
+      "@/lib/locations": { DREXEL_LOCATIONS: ["Campbellsport"] },
       sessionStorage: { getItem: () => null, removeItem() {} },
     });
     AuthProvider({ children: null });
@@ -657,116 +750,332 @@ test('authentication reads an existing profile once, rereads only after initiali
     assert.equal(writes, initialize ? 1 : 0);
     assert.equal(subscriptions, 1);
     assert.equal(states[1].stats.totalPoints, initialize ? 0 : 20);
-    await new Promise(resolve => setTimeout(resolve, 20));
+    await new Promise((resolve) => setTimeout(resolve, 20));
     assert.equal(reads, initialize ? 2 : 1);
-    cleanup(); assert.equal(cleanups, 1);
+    cleanup();
+    assert.equal(cleanups, 1);
   }
 });
 
-test('cancelled challenge load does not issue a request after token retrieval', async () => {
-  const effects = []; let resolveToken; let calls = 0;
-  const { DailyChallenge } = load('components/daily-challenge.tsx', {
-    react: { ...React, useState: initial => [initial, () => {}], useRef: initial => ({ current: initial }), useEffect: effect => effects.push(effect) },
-    'react/jsx-runtime': await import('react/jsx-runtime'), 'next/link': { default: 'a' },
-    'lucide-react': {}, '@/lib/utils': { cn: () => '' }, '@/components/ui/button': { Button: 'button' }, '@/components/ui/input': { Input: 'input' }, '@/lib/challenges/content': content,
-    '@/components/challenge-results': { ChallengeResultsView: 'results' },
-    '@/auth/auth-context': { useAuth: () => ({ user: { getIdToken: () => new Promise(resolve => { resolveToken = resolve; }) } }) },
-    '@/components/play-skeleton': { PlaySkeleton: 'skeleton' },
-    fetch: async () => { calls++; throw new Error('Unexpected request'); },
+test("cancelled challenge load does not issue a request after token retrieval", async () => {
+  const effects = [];
+  let resolveToken;
+  let calls = 0;
+  const { DailyChallenge } = load("components/daily-challenge.tsx", {
+    react: {
+      ...React,
+      useState: (initial) => [initial, () => {}],
+      useRef: (initial) => ({ current: initial }),
+      useEffect: (effect) => effects.push(effect),
+    },
+    "react/jsx-runtime": await import("react/jsx-runtime"),
+    "next/link": { default: "a" },
+    "lucide-react": {},
+    "@/lib/utils": { cn: () => "" },
+    "@/components/ui/button": { Button: "button" },
+    "@/components/ui/input": { Input: "input" },
+    "@/lib/challenges/content": content,
+    "@/components/challenge-results": { ChallengeResultsView: "results" },
+    "@/auth/auth-context": {
+      useAuth: () => ({
+        user: {
+          getIdToken: () =>
+            new Promise((resolve) => {
+              resolveToken = resolve;
+            }),
+        },
+      }),
+    },
+    "@/components/play-skeleton": { PlaySkeleton: "skeleton" },
+    fetch: async () => {
+      calls++;
+      throw new Error("Unexpected request");
+    },
   });
   DailyChallenge();
   const cleanup = effects[0]();
-  cleanup(); resolveToken('valid');
-  await new Promise(resolve => setTimeout(resolve, 20));
+  cleanup();
+  resolveToken("valid");
+  await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(calls, 0);
 });
 
-const estimateQuestion = {text:'How many?',category:'Company',type:'estimate',correctAnswer:800,unit:'employees',minGuess:-1000,maxGuess:5000,isActive:true,imageUrl:null};
-test('exact numeric scoring preserves zero, decimals, negatives, and the existing scale',()=>{
-  for (const value of [0,-12,0.25,800,800.0]) {
-    assert.equal(scoring.scoreAnswers([value],[value]).pointsEarned,10);
-    assert.equal(scoring.scoreAnswers([value+0.5],[value]).pointsEarned,0);
+const estimateQuestion = {
+  text: "How many?",
+  category: "Company",
+  type: "estimate",
+  correctAnswer: 800,
+  unit: "employees",
+  minGuess: -1000,
+  maxGuess: 5000,
+  isActive: true,
+  imageUrl: null,
+};
+test("exact numeric scoring preserves zero, decimals, negatives, and the existing scale", () => {
+  for (const value of [0, -12, 0.25, 800, 800.0]) {
+    assert.equal(scoring.scoreAnswers([value], [value]).pointsEarned, 10);
+    assert.equal(scoring.scoreAnswers([value + 0.5], [value]).pointsEarned, 0);
   }
-  assert.equal(scoring.scoreAnswers([0.1+0.2],[0.3]).pointsEarned,0);
+  assert.equal(scoring.scoreAnswers([0.1 + 0.2], [0.3]).pointsEarned, 0);
 });
-test('estimate public responses omit answer keys and validate finite ranged answers', async()=>{
-  const publicQuestion=content.toPublicQuestion('q1',estimateQuestion);
-  assert.equal('correctAnswer' in publicQuestion,false);
-  assert.equal('correctAnswerIndex' in publicQuestion,false);
-  for (const answer of [0,-1,800.5]) assert.equal(content.isValidAnswer(publicQuestion,answer),true);
-  for (const answer of [undefined,null,'800',NaN,Infinity,-Infinity,-1001,5001]) assert.equal(content.isValidAnswer(publicQuestion,answer),false);
-  const result=await route({docs:['q1','q2','q3'].map(id=>({id,data:()=>estimateQuestion}))}).GET(request());
-  const body=await result.json(); assert.equal(body.status,'available');
-  assert.equal(JSON.stringify(body).includes('correctAnswer'),false);
+test("estimate public responses omit answer keys and validate finite ranged answers", async () => {
+  const publicQuestion = content.toPublicQuestion("q1", estimateQuestion);
+  assert.equal("correctAnswer" in publicQuestion, false);
+  assert.equal("correctAnswerIndex" in publicQuestion, false);
+  for (const answer of [0, -1, 800.5])
+    assert.equal(content.isValidAnswer(publicQuestion, answer), true);
+  for (const answer of [
+    undefined,
+    null,
+    "800",
+    NaN,
+    Infinity,
+    -Infinity,
+    -1001,
+    5001,
+  ])
+    assert.equal(content.isValidAnswer(publicQuestion, answer), false);
+  const result = await route({
+    docs: ["q1", "q2", "q3"].map((id) => ({
+      id,
+      data: () => estimateQuestion,
+    })),
+  }).GET(request());
+  const body = await result.json();
+  assert.equal(body.status, "available");
+  assert.equal(JSON.stringify(body).includes("correctAnswer"), false);
 });
-test('mixed submissions score estimates on the server and snapshot exact answers',async()=>{
-  for (const value of [0,-12,0.25,800]) {
-    const server=submissionRoute({questionDocs:{q1:{...estimateQuestion,correctAnswer:value}}});
-    const response=await server.POST(submissionRequest({challengeDate:'2026-10-14',questionIds:['q3','q1','q2'],answers:[0,value,1]}));
-    assert.equal(response.status,201);
-    const {results}=await response.json(); assert.equal(results.correctCount,2); assert.equal(results.pointsEarned,20);
-    assert.equal(results.questions[1].correctAnswer,value); assert.equal(results.answers[1],value);
-    assert.equal((await server.POST(submissionRequest())).status,409); assert.equal(server.writes(),3);
+test("mixed submissions score estimates on the server and snapshot exact answers", async () => {
+  for (const value of [0, -12, 0.25, 800]) {
+    const server = submissionRoute({
+      questionDocs: { q1: { ...estimateQuestion, correctAnswer: value } },
+    });
+    const response = await server.POST(
+      submissionRequest({
+        challengeDate: "2026-10-14",
+        questionIds: ["q3", "q1", "q2"],
+        answers: [0, value, 1],
+      }),
+    );
+    assert.equal(response.status, 201);
+    const { results } = await response.json();
+    assert.equal(results.correctCount, 2);
+    assert.equal(results.pointsEarned, 20);
+    assert.equal(results.questions[1].correctAnswer, value);
+    assert.equal(results.answers[1], value);
+    assert.equal((await server.POST(submissionRequest())).status, 409);
+    assert.equal(server.writes(), 3);
   }
-  for (const value of [799,801,800.5]) {
-    const server=submissionRoute({questionDocs:{q1:estimateQuestion}});
-    const response=await server.POST(submissionRequest({challengeDate:'2026-10-14',questionIds:['q3','q1','q2'],answers:[0,value,0]}));
-    assert.equal((await response.json()).results.pointsEarned,20);
+  for (const value of [799, 801, 800.5]) {
+    const server = submissionRoute({ questionDocs: { q1: estimateQuestion } });
+    const response = await server.POST(
+      submissionRequest({
+        challengeDate: "2026-10-14",
+        questionIds: ["q3", "q1", "q2"],
+        answers: [0, value, 0],
+      }),
+    );
+    assert.equal((await response.json()).results.pointsEarned, 20);
   }
-  for (const answers of [[0,null,0],[0,'800',0],[0,5001,0],[0,-1001,0],[0.5,800,0]]) {
-    const server=submissionRoute({questionDocs:{q1:estimateQuestion}});
-    assert.equal((await server.POST(submissionRequest({challengeDate:'2026-10-14',questionIds:['q3','q1','q2'],answers}))).status,400);
-    assert.equal(server.writes(),0);
+  for (const answers of [
+    [0, null, 0],
+    [0, "800", 0],
+    [0, 5001, 0],
+    [0, -1001, 0],
+    [0.5, 800, 0],
+  ]) {
+    const server = submissionRoute({ questionDocs: { q1: estimateQuestion } });
+    assert.equal(
+      (
+        await server.POST(
+          submissionRequest({
+            challengeDate: "2026-10-14",
+            questionIds: ["q3", "q1", "q2"],
+            answers,
+          }),
+        )
+      ).status,
+      400,
+    );
+    assert.equal(server.writes(), 0);
   }
 });
 
-test('estimate input preserves zero and decimals across navigation without extra requests', async()=>{
-  const states=[],refs=[],effects=[]; let cursor=0,calls=0;
-  const hooks={...React,useState(initial){const i=cursor++;if(!(i in states))states[i]=initial;return [states[i],v=>{states[i]=typeof v==='function'?v(states[i]):v;}];},useRef(initial){const i=cursor++;return refs[i]??={current:initial};},useEffect(fn){effects.push(fn);}};
-  const {DailyChallenge}=load('components/daily-challenge.tsx',{
-    react:hooks,'react/jsx-runtime':await import('react/jsx-runtime'),'next/link':{default:'a'},'lucide-react':{},'@/lib/utils':{cn:()=>''},
-    '@/components/ui/button':{Button:'button'},'@/components/ui/input':{Input:'input'},'@/lib/challenges/content':content,
-    '@/components/challenge-results':{ChallengeResultsView:'results'},'@/auth/auth-context':{useAuth:()=>({user:{getIdToken:async()=> 'valid'}})},'@/components/play-skeleton':{PlaySkeleton:'skeleton'},
-    fetch:async()=>{calls++;return Response.json({status:'available',date:'2026-10-14',questions:['a','b','c'].map(id=>content.toPublicQuestion(id,estimateQuestion))});}
+test("estimate input preserves zero and decimals across navigation without extra requests", async () => {
+  const states = [],
+    refs = [],
+    effects = [];
+  let cursor = 0,
+    calls = 0;
+  const hooks = {
+    ...React,
+    useState(initial) {
+      const i = cursor++;
+      if (!(i in states)) states[i] = initial;
+      return [
+        states[i],
+        (v) => {
+          states[i] = typeof v === "function" ? v(states[i]) : v;
+        },
+      ];
+    },
+    useRef(initial) {
+      const i = cursor++;
+      return (refs[i] ??= { current: initial });
+    },
+    useEffect(fn) {
+      effects.push(fn);
+    },
+  };
+  const { DailyChallenge } = load("components/daily-challenge.tsx", {
+    react: hooks,
+    "react/jsx-runtime": await import("react/jsx-runtime"),
+    "next/link": { default: "a" },
+    "lucide-react": {},
+    "@/lib/utils": { cn: () => "" },
+    "@/components/ui/button": { Button: "button" },
+    "@/components/ui/input": { Input: "input" },
+    "@/lib/challenges/content": content,
+    "@/components/challenge-results": { ChallengeResultsView: "results" },
+    "@/auth/auth-context": {
+      useAuth: () => ({ user: { getIdToken: async () => "valid" } }),
+    },
+    "@/components/play-skeleton": { PlaySkeleton: "skeleton" },
+    fetch: async () => {
+      calls++;
+      return Response.json({
+        status: "available",
+        date: "2026-10-14",
+        questions: ["a", "b", "c"].map((id) =>
+          content.toPublicQuestion(id, estimateQuestion),
+        ),
+      });
+    },
   });
-  function nodes(tree){return React.isValidElement(tree)?[tree,...React.Children.toArray(tree.props.children).flatMap(nodes)]:[];}
-  const render=()=>{cursor=0;return nodes(DailyChallenge());};
-  render();effects[0]();await new Promise(resolve=>setTimeout(resolve,10));
-  let tree=render();
-  const input=()=>tree.find(n=>n.props.id==='estimate-answer');
-  const next=()=>tree.find(n=>n.type==='form').props.onSubmit({preventDefault(){}});
-  const back=()=>tree.find(n=>n.props.variant==='ghost').props.onClick();
-  const enter=value=>{input().props.onChange({target:{value:String(value),valueAsNumber:Number(value)}});tree=render();};
-  assert.equal(input().props.min,-1000);assert.equal(input().props.max,5000);assert.equal(input().props.step,'any');
-  enter(0);assert.equal(tree.find(n=>n.props.type==='submit').props.disabled,false);next();tree=render();
-  enter(-12.25);back();tree=render();assert.equal(input().props.value,'0');
-  next();tree=render();assert.equal(input().props.value,'-12.25');
-  enter(5001);assert.equal(tree.find(n=>n.props.type==='submit').props.disabled,true);
-  enter('');assert.equal(tree.find(n=>n.props.type==='submit').props.disabled,true);
-  assert.equal(calls,1);
+  function nodes(tree) {
+    return React.isValidElement(tree)
+      ? [tree, ...React.Children.toArray(tree.props.children).flatMap(nodes)]
+      : [];
+  }
+  const render = () => {
+    cursor = 0;
+    return nodes(DailyChallenge());
+  };
+  render();
+  effects[0]();
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  let tree = render();
+  const input = () => tree.find((n) => n.props.id === "estimate-answer");
+  const next = () =>
+    tree.find((n) => n.type === "form").props.onSubmit({ preventDefault() {} });
+  const back = () =>
+    tree.find((n) => n.props.variant === "ghost").props.onClick();
+  const enter = (value) => {
+    input().props.onChange({
+      target: { value: String(value), valueAsNumber: Number(value) },
+    });
+    tree = render();
+  };
+  assert.equal(input().props.min, -1000);
+  assert.equal(input().props.max, 5000);
+  assert.equal(input().props.step, "any");
+  enter(0);
+  assert.equal(
+    tree.find((n) => n.props.type === "submit").props.disabled,
+    false,
+  );
+  next();
+  tree = render();
+  enter(-12.25);
+  back();
+  tree = render();
+  assert.equal(input().props.value, "0");
+  next();
+  tree = render();
+  assert.equal(input().props.value, "-12.25");
+  enter(5001);
+  assert.equal(
+    tree.find((n) => n.props.type === "submit").props.disabled,
+    true,
+  );
+  enter("");
+  assert.equal(
+    tree.find((n) => n.props.type === "submit").props.disabled,
+    true,
+  );
+  assert.equal(calls, 1);
 });
-test('estimate results show submitted and correct numeric values with units',async()=>{
-  const {ChallengeResultsView}=load('components/challenge-results.tsx',{'@/components/ui/button':{Button:'button'},'react/jsx-runtime':await import('react/jsx-runtime'),'next/link':{default:'a'},'lucide-react':{CheckCircle2:'check',XCircle:'cross'},'@/lib/utils':{cn:()=>''}});
-  function text(tree){if(typeof tree==='string'||typeof tree==='number')return String(tree);return React.isValidElement(tree)?React.Children.toArray(tree.props.children).map(text).join(' '):'';}
-  for(const answer of [750,800]){
-    const review=text(ChallengeResultsView({results:{...savedAttempt,answers:[answer],questions:[{...content.toPublicQuestion('a',estimateQuestion),correctAnswer:800}]},headingRef:{current:null}}));
-    assert.match(review,new RegExp(`Your Estimate ${answer}\\s+employees`));assert.match(review,/Correct Answer 800\s+employees/);assert.match(review,answer===800?/·\s+Correct/:/·\s+Incorrect/);
+test("estimate results show submitted and correct numeric values with units", async () => {
+  const { ChallengeResultsView } = load("components/challenge-results.tsx", {
+    "@/components/ui/button": { Button: "button" },
+    "react/jsx-runtime": await import("react/jsx-runtime"),
+    "next/link": { default: "a" },
+    "lucide-react": { CheckCircle2: "check", XCircle: "cross" },
+    "@/lib/utils": { cn: () => "" },
+  });
+  function text(tree) {
+    if (typeof tree === "string" || typeof tree === "number")
+      return String(tree);
+    return React.isValidElement(tree)
+      ? React.Children.toArray(tree.props.children).map(text).join(" ")
+      : "";
+  }
+  for (const answer of [750, 800]) {
+    const review = text(
+      ChallengeResultsView({
+        results: {
+          ...savedAttempt,
+          answers: [answer],
+          questions: [
+            {
+              ...content.toPublicQuestion("a", estimateQuestion),
+              correctAnswer: 800,
+            },
+          ],
+        },
+        headingRef: { current: null },
+      }),
+    );
+    assert.match(review, new RegExp(`Your Estimate ${answer}\\s+employees`));
+    assert.match(review, /Correct Answer 800\s+employees/);
+    assert.match(review, answer === 800 ? /·\s+Correct/ : /·\s+Incorrect/);
   }
 });
-
 
 test("yard rankings include all locations, zero defaults, and allowlist tie order", () => {
-  const { rankYards } = load("lib/yard-leaderboard.ts", { "@/lib/locations": locations });
-  const yards = rankYards(new Map([["Downtown", 20], ["Kiel", 20], ["Berlin", 10], ["Unknown", 999], ["Amherst", -1]]));
+  const { rankYards } = load("lib/yard-leaderboard.ts", {
+    "@/lib/locations": locations,
+  });
+  const yards = rankYards(
+    new Map([
+      ["Downtown", 20],
+      ["Kiel", 20],
+      ["Berlin", 10],
+      ["Unknown", 999],
+      ["Amherst", -1],
+    ]),
+  );
   assert.equal(yards.length, 10);
-  assert.deepEqual(Array.from(yards.slice(0, 3), yard => yard.locationId), ["Downtown", "Kiel", "Berlin"]);
+  assert.deepEqual(
+    Array.from(yards.slice(0, 3), (yard) => yard.locationId),
+    ["Downtown", "Kiel", "Berlin"],
+  );
   assert.equal(yards[3].locationId, "Campbellsport");
   assert.equal(yards[9].totalPoints, 0);
-  assert.deepEqual(Array.from(rankYards(new Map()), yard => yard.locationId), Array.from(locations.DREXEL_LOCATIONS));
+  assert.deepEqual(
+    Array.from(rankYards(new Map()), (yard) => yard.locationId),
+    Array.from(locations.DREXEL_LOCATIONS),
+  );
 });
 
 test("each exact location ID receives points; invalid locations reject the entire submission", async () => {
-  for (const locationId of [...locations.DREXEL_LOCATIONS, null, "campbellsport", "Unknown", "Downtown "]) {
+  for (const locationId of [
+    ...locations.DREXEL_LOCATIONS,
+    null,
+    "campbellsport",
+    "Unknown",
+    "Downtown ",
+  ]) {
     const fixture = submissionRoute({ profile: { locationId, stats: {} } });
     const response = await fixture.POST(submissionRequest());
     const valid = locations.DREXEL_LOCATIONS.includes(locationId);
@@ -778,40 +1087,55 @@ test("each exact location ID receives points; invalid locations reject the entir
 
 test("leaderboard security denies client writes and profile allowlist matches the source", () => {
   const rules = fs.readFileSync("firestore.rules", "utf8");
-  assert.match(rules, /match \/locations\/\{locationId\}\s*\{\s*allow read: if request.auth != null;\s*allow create, update, delete: if false;/);
+  assert.match(
+    rules,
+    /match \/locations\/\{locationId\}\s*\{\s*allow read: if request.auth != null;\s*allow create, update, delete: if false;/,
+  );
   const allowlist = rules.match(/data.locationId in \[([\s\S]*?)\]/)[1];
-  assert.deepEqual(Array.from(allowlist.matchAll(/'([^']+)'/g), match => match[1]), Array.from(locations.DREXEL_LOCATIONS));
+  assert.deepEqual(
+    Array.from(allowlist.matchAll(/'([^']+)'/g), (match) => match[1]),
+    Array.from(locations.DREXEL_LOCATIONS),
+  );
 });
 
-test("leaderboard views share a cached collection request and failed requests can retry", async () => {
+test("leaderboard visits fetch fresh totals, share in-flight requests, and retry failures", async () => {
   let reads = 0;
   let fail = false;
+  let totalPoints = 30;
   const { getYardLeaderboard } = load("lib/yard-leaderboard-client.ts", {
     "firebase/firestore": {
-      collection: (_, name) => { assert.equal(name, "locations"); return name; },
-      getDocs: async () => {
+      collection: (_, name) => {
+        assert.equal(name, "locations");
+        return name;
+      },
+      getDocsFromServer: async () => {
         reads++;
         if (fail) throw new Error("Unavailable");
-        return { docs: [{ id: "Kiel", data: () => ({ totalPoints: 30 }) }] };
+        return { docs: [{ id: "Kiel", data: () => ({ totalPoints }) }] };
       },
     },
     "@/firebase/config": { db: {} },
-    "@/lib/yard-leaderboard": load("lib/yard-leaderboard.ts", { "@/lib/locations": locations }),
+    "@/lib/yard-leaderboard": load("lib/yard-leaderboard.ts", {
+      "@/lib/locations": locations,
+    }),
   });
   const first = getYardLeaderboard("employee");
   assert.equal(first, getYardLeaderboard("employee"));
   assert.equal((await first)[0].locationId, "Kiel");
-  await getYardLeaderboard("employee");
-  assert.equal(reads, 1);
+  totalPoints = 60;
+  assert.equal((await getYardLeaderboard("employee"))[0].totalPoints, 60);
+  assert.equal(reads, 2);
   fail = true;
   await assert.rejects(getYardLeaderboard("another-employee"));
   fail = false;
   await getYardLeaderboard("another-employee");
-  assert.equal(reads, 3);
+  assert.equal(reads, 4);
 });
 
 test("preview renders three yards and full view renders ten with current yard highlighted", async () => {
-  const { rankYards } = load("lib/yard-leaderboard.ts", { "@/lib/locations": locations });
+  const { rankYards } = load("lib/yard-leaderboard.ts", {
+    "@/lib/locations": locations,
+  });
   const yards = rankYards(new Map());
   let state = { uid: "employee", yards };
   let signedIn = true;
@@ -819,26 +1143,53 @@ test("preview renders three yards and full view renders ten with current yard hi
     react: { ...React, useState: () => [state, () => {}], useEffect() {} },
     "react/jsx-runtime": await import("react/jsx-runtime"),
     "next/link": { default: "a" },
-    "@/auth/auth-context": { useAuth: () => ({ user: signedIn ? { uid: "employee" } : null, profile: { locationId: "Downtown" }, loading: false }) },
-    "@/components/ui/card": { Card: "card", CardHeader: "header", CardContent: "content" },
+    "@/auth/auth-context": {
+      useAuth: () => ({
+        user: signedIn ? { uid: "employee" } : null,
+        profile: { locationId: "Downtown" },
+        loading: false,
+      }),
+    },
+    "@/components/ui/card": {
+      Card: "card",
+      CardHeader: "header",
+      CardContent: "content",
+    },
     "@/components/ui/button": { Button: "button" },
     "@/lib/yard-leaderboard-client": {},
     "@/lib/utils": { cn: (...values) => values.filter(Boolean).join(" ") },
   });
-  function nodes(tree) { return React.isValidElement(tree) ? [tree, ...React.Children.toArray(tree.props.children).flatMap(nodes)] : []; }
-  function text(tree) { return typeof tree === "string" || typeof tree === "number" ? String(tree) : React.isValidElement(tree) ? React.Children.toArray(tree.props.children).map(text).join(" ") : ""; }
+  function nodes(tree) {
+    return React.isValidElement(tree)
+      ? [tree, ...React.Children.toArray(tree.props.children).flatMap(nodes)]
+      : [];
+  }
+  function text(tree) {
+    return typeof tree === "string" || typeof tree === "number"
+      ? String(tree)
+      : React.isValidElement(tree)
+        ? React.Children.toArray(tree.props.children).map(text).join(" ")
+        : "";
+  }
   const preview = YardLeaderboard({ preview: true });
-  assert.equal(nodes(preview).filter(node => node.type === "li").length, 3);
-  assert.equal(nodes(preview).find(node => node.props.href)?.props.href, "/leaderboard");
+  assert.equal(nodes(preview).filter((node) => node.type === "li").length, 3);
+  assert.equal(
+    nodes(preview).find((node) => node.props.href)?.props.href,
+    "/leaderboard",
+  );
   const full = YardLeaderboard({});
-  assert.equal(nodes(full).filter(node => node.type === "li").length, 10);
-  const current = nodes(full).filter(node => node.type === "li").find(node => text(node).includes("Your yard"));
+  assert.equal(nodes(full).filter((node) => node.type === "li").length, 10);
+  const current = nodes(full)
+    .filter((node) => node.type === "li")
+    .find((node) => text(node).includes("Your yard"));
   assert.match(text(current), /Downtown/);
   assert.match(current.props.className, /border-drexel-action/);
   state = null;
   assert.match(text(YardLeaderboard({})), /Loading yard rankings/);
   state = { uid: "employee", error: "Could not load" };
-  assert.ok(nodes(YardLeaderboard({})).some(node => node.props.role === "alert"));
+  assert.ok(
+    nodes(YardLeaderboard({})).some((node) => node.props.role === "alert"),
+  );
   signedIn = false;
   assert.match(text(YardLeaderboard({})), /Sign in through Play/);
 });
