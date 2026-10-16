@@ -1,6 +1,17 @@
+const CHALLENGE_TIME_ZONE = "America/Chicago";
+
+export function formatCurrentChallengeDate(now = new Date()) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: CHALLENGE_TIME_ZONE,
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(now);
+}
+
 export function getChallengeDay(now = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Chicago",
+    timeZone: CHALLENGE_TIME_ZONE,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

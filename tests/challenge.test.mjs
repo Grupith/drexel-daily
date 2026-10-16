@@ -52,10 +52,19 @@ test("Central midnight, weekdays, weekends, and DST boundaries", () => {
   for (const [instant, date, weekday] of [
     ["2026-10-15T04:59:59Z", "2026-10-14", true],
     ["2026-10-15T05:00:00Z", "2026-10-15", true],
+    ["2026-10-16T01:53:00Z", "2026-10-15", true],
     ["2026-10-17T17:00:00Z", "2026-10-17", false],
     ["2026-10-18T17:00:00Z", "2026-10-18", false],
     ["2026-10-19T17:00:00Z", "2026-10-19", true],
+    ["2026-03-08T05:59:59Z", "2026-03-07", false],
+    ["2026-03-08T06:00:00Z", "2026-03-08", false],
+    ["2026-03-08T07:59:59Z", "2026-03-08", false],
     ["2026-03-08T08:00:00Z", "2026-03-08", false],
+    ["2026-03-09T04:59:59Z", "2026-03-08", false],
+    ["2026-03-09T05:00:00Z", "2026-03-09", true],
+    ["2026-11-01T04:59:59Z", "2026-10-31", false],
+    ["2026-11-01T05:00:00Z", "2026-11-01", false],
+    ["2026-11-01T06:59:59Z", "2026-11-01", false],
     ["2026-11-01T07:00:00Z", "2026-11-01", false],
     ["2026-11-02T05:59:59Z", "2026-11-01", false],
     ["2026-11-02T06:00:00Z", "2026-11-02", true],
@@ -64,6 +73,46 @@ test("Central midnight, weekdays, weekends, and DST boundaries", () => {
     assert.equal(actual.date, date);
     assert.equal(actual.isWeekday, weekday);
   }
+});
+
+test("landing date uses Central Time through midnight and both DST changes", () => {
+  for (const [instant, expected] of [
+    ["2026-10-16T01:53:00Z", "Thursday, October 15"],
+    ["2026-10-16T04:59:59Z", "Thursday, October 15"],
+    ["2026-10-16T05:00:00Z", "Friday, October 16"],
+    ["2026-03-08T07:59:59Z", "Sunday, March 8"],
+    ["2026-03-08T08:00:00Z", "Sunday, March 8"],
+    ["2026-03-09T05:00:00Z", "Monday, March 9"],
+    ["2026-11-01T06:59:59Z", "Sunday, November 1"],
+    ["2026-11-01T07:00:00Z", "Sunday, November 1"],
+    ["2026-11-02T06:00:00Z", "Monday, November 2"],
+  ]) {
+    assert.equal(dates.formatCurrentChallengeDate(new Date(instant)), expected);
+  }
+});
+
+test("landing page waits for a request before calculating the date", async () => {
+  let connected = false;
+  const { default: Home } = load("app/page.tsx", {
+    "next/server": {
+      connection: async () => {
+        connected = true;
+      },
+    },
+    "@/lib/challenges/date": {
+      formatCurrentChallengeDate: () => {
+        assert.equal(connected, true);
+        return "Thursday, October 15";
+      },
+    },
+    "react/jsx-runtime": await import("react/jsx-runtime"),
+    "@/components/yard-leaderboard": { YardLeaderboard: "leaderboard" },
+    "@/components/brand-tiles": { BrandTiles: "brand" },
+    "@/components/challenge-preview": { ChallengePreview: "preview" },
+    "@/components/landing-account-status": { LandingAccountStatus: "account" },
+  });
+  const tree = await Home();
+  assert.ok(JSON.stringify(tree).includes("Thursday, October 15"));
 });
 
 function route({

@@ -1,9 +1,13 @@
+import { connection } from "next/server";
+import { formatCurrentChallengeDate } from "@/lib/challenges/date";
 import { YardLeaderboard } from "@/components/yard-leaderboard";
 import { BrandTiles } from "@/components/brand-tiles";
 import { ChallengePreview } from "@/components/challenge-preview";
 import { LandingAccountStatus } from "@/components/landing-account-status";
 
-export default function Home() {
+export default async function Home() {
+  // Evaluate today's date per request rather than freezing it at build time.
+  await connection();
   return (
     <div className="min-h-svh flex flex-col text-drexel-ink font-drexel bg-drexel-canvas">
       <main className="flex-1 grid place-items-center py-20 px-6 [@media(max-width:600px)]:py-14">
@@ -31,11 +35,7 @@ export default function Home() {
           </p>
           <ChallengePreview />
           <p className="mt-7.5 text-drexel-subtle text-sm font-medium leading-normal">
-            {new Date().toLocaleDateString("en-US", {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-            })}
+            {formatCurrentChallengeDate()}
           </p>
           <LandingAccountStatus />
           <YardLeaderboard preview />
